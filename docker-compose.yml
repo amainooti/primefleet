@@ -1,0 +1,17 @@
+services:
+  primefleet-app:
+    build: .
+    container_name: primefleet-app
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    ports:
+      - "127.0.0.1:3020:3000"
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    networks:
+      - primefleet-net
+
+networks:
+  primefleet-net:
+    external: true

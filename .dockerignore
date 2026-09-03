@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+docs-temp
+*.zip
+BUILD_STATUS.md
+.env
+public/uploads

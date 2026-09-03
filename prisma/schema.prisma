@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Condition {
+  NEW
+  USED
+}
+
+enum TruckStatus {
+  AVAILABLE
+  RESERVED
+  RENTED
+  MAINTENANCE
+  ARCHIVED
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  CLOSED
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  trucks    Truck[]
+  createdAt DateTime @default(now())
+}
+
+model Truck {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  stockNumber String      @unique
+  year        Int
+  manufacturer String
+  model       String
+  title       String
+  description String?
+
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+
+  condition   Condition
+  status      TruckStatus @default(AVAILABLE)
+  rateDisplay String
+  location    String?
+
+  images         TruckImage[]
+  specifications Specification[]
+  inquiries      Inquiry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([manufacturer])
+  @@index([categoryId])
+}
+
+model TruckImage {
+  id        String  @id @default(cuid())
+  truckId   String
+  truck     Truck   @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  @@index([truckId])
+}
+
+model Specification {
+  id        String @id @default(cuid())
+  truckId   String
+  truck     Truck  @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  group     String
+  name      String
+  value     String
+  sortOrder Int    @default(0)
+
+  @@index([truckId])
+}
+
+model Inquiry {
+  id      String        @id @default(cuid())
+  truckId String?
+  truck   Truck?        @relation(fields: [truckId], references: [id])
+  name    String
+  email   String
+  phone   String?
+  message String
+  status  InquiryStatus @default(NEW)
+
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@index([truckId])
+}
+
+model Admin {
+  id           String @id @default(cuid())
+  passwordHash String
+}
