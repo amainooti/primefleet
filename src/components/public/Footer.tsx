@@ -32,7 +32,7 @@ export function Footer() {
             <p className="text-sm font-semibold text-[#D4AF37]">Contact</p>
             <ul className="mt-4 space-y-2 text-sm text-white/70">
               <li>rentalprimefleet@gmail.com</li>
-              <li>(555) 010-2938</li>
+              <li>+1 818 275 0595</li>
               <li>Austin, TX</li>
             </ul>
           </div>
