@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
-import { saveTruckImage } from "@/lib/storage/local";
+import { saveTruckImage } from "@/lib/storage/r2";
 
 export async function addTruckImages(truckId: string, formData: FormData) {
   const files = formData

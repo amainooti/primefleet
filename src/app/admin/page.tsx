@@ -1,4 +1,14 @@
 import Link from "next/link";
+import {
+  Plus,
+  Truck,
+  CheckCircle2,
+  Clock,
+  Wrench,
+  MessageSquare,
+  Package,
+  ArrowRight,
+} from "lucide-react";
 import { prisma } from "@/lib/db/client";
 
 export default async function AdminDashboard() {
@@ -20,12 +30,12 @@ export default async function AdminDashboard() {
     .reduce((sum, s) => sum + s._count, 0);
 
   const stats = [
-    { label: "Active listings", value: totalActive },
-    { label: "Available", value: countFor("AVAILABLE") },
-    { label: "Reserved", value: countFor("RESERVED") },
-    { label: "Rented", value: countFor("RENTED") },
-    { label: "In maintenance", value: countFor("MAINTENANCE") },
-    { label: "New inquiries", value: newInquiryCount },
+    { label: "Active listings", value: totalActive, icon: Package },
+    { label: "Available", value: countFor("AVAILABLE"), icon: CheckCircle2 },
+    { label: "Reserved", value: countFor("RESERVED"), icon: Clock },
+    { label: "Rented", value: countFor("RENTED"), icon: Truck },
+    { label: "In maintenance", value: countFor("MAINTENANCE"), icon: Wrench },
+    { label: "New inquiries", value: newInquiryCount, icon: MessageSquare },
   ];
 
   return (
@@ -39,9 +49,9 @@ export default async function AdminDashboard() {
         </div>
         <Link
           href="/admin/trucks/new"
-          className="rounded bg-[#141414] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-[#D4AF37] transition-opacity hover:opacity-90"
+          className="flex items-center gap-1.5 rounded bg-[#141414] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-[#D4AF37] transition-opacity hover:opacity-90"
         >
-          + Add Truck
+          <Plus size={16} /> Add Truck
         </Link>
       </div>
 
@@ -51,7 +61,10 @@ export default async function AdminDashboard() {
             key={s.label}
             className="rounded-lg border border-[#E4E4E2] bg-white p-4"
           >
-            <p className="text-2xl font-bold text-[#141414]">{s.value}</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-2xl font-bold text-[#141414]">{s.value}</p>
+              <s.icon size={18} className="text-[#D4AF37]" />
+            </div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#6B6E76]">
               {s.label}
             </p>
@@ -65,6 +78,12 @@ export default async function AdminDashboard() {
             <h2 className="text-lg font-bold text-[#141414]">
               Recent inquiries
             </h2>
+            <Link
+              href="/admin/inquiries"
+              className="flex items-center gap-1 text-sm font-semibold text-[#6B6E76] hover:text-[#141414]"
+            >
+              View all <ArrowRight size={14} />
+            </Link>
           </div>
 
           {recentInquiries.length === 0 ? (
@@ -74,9 +93,10 @@ export default async function AdminDashboard() {
           ) : (
             <div className="divide-y divide-[#E4E4E2] rounded-lg border border-[#E4E4E2] bg-white">
               {recentInquiries.map((inq) => (
-                <div
+                <Link
+                  href={`/admin/inquiries/${inq.id}`}
                   key={inq.id}
-                  className="flex items-center justify-between gap-4 px-4 py-3"
+                  className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-[#FAFAF9]"
                 >
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-[#141414]">
@@ -99,7 +119,7 @@ export default async function AdminDashboard() {
                   >
                     {inq.status}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -112,15 +132,21 @@ export default async function AdminDashboard() {
           <div className="space-y-2">
             <Link
               href="/admin/trucks"
-              className="block rounded-lg border border-[#E4E4E2] bg-white px-4 py-3 text-sm font-semibold text-[#141414] transition-colors hover:border-[#D4AF37]"
+              className="flex items-center gap-2 rounded-lg border border-[#E4E4E2] bg-white px-4 py-3 text-sm font-semibold text-[#141414] transition-colors hover:border-[#D4AF37]"
             >
-              View inventory
+              <Truck size={16} className="text-[#D4AF37]" /> View inventory
             </Link>
             <Link
               href="/admin/trucks/new"
-              className="block rounded-lg border border-[#E4E4E2] bg-white px-4 py-3 text-sm font-semibold text-[#141414] transition-colors hover:border-[#D4AF37]"
+              className="flex items-center gap-2 rounded-lg border border-[#E4E4E2] bg-white px-4 py-3 text-sm font-semibold text-[#141414] transition-colors hover:border-[#D4AF37]"
             >
-              Add a truck
+              <Plus size={16} className="text-[#D4AF37]" /> Add a truck
+            </Link>
+            <Link
+              href="/admin/inquiries"
+              className="flex items-center gap-2 rounded-lg border border-[#E4E4E2] bg-white px-4 py-3 text-sm font-semibold text-[#141414] transition-colors hover:border-[#D4AF37]"
+            >
+              <MessageSquare size={16} className="text-[#D4AF37]" /> View inquiries
             </Link>
           </div>
         </div>

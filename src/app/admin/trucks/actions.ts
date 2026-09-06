@@ -58,3 +58,8 @@ export async function archiveTruck(id: string) {
   await prisma.truck.update({ where: { id }, data: { status: "ARCHIVED" } });
   revalidatePath("/admin/trucks");
 }
+
+export async function restoreTruck(id: string) {
+  await prisma.truck.update({ where: { id }, data: { status: "AVAILABLE" } });
+  revalidatePath("/admin/trucks");
+}

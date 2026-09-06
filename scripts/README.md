@@ -117,6 +117,15 @@ npx tsx scripts/cleanup-inventory.ts delete <truckId>
   ## Move to production
   `scp -r .\public\uploads\trucks\* vps:/opt/primefleet/public/uploads/trucks/`
 
+
+## Copy only recent
+
+`   wsl rsync -avz --progress /mnt/c/Users/HP/Documents/dev/primefleet/public/uploads/trucks/ vps:/opt/primefleet/public/uploads/trucks/`
+
+Scp
+`Get-ChildItem .\public\uploads\trucks\* | Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-1) } | ForEach-Object { scp $_.FullName vps:/opt/primefleet/public/uploads/trucks/ }`
+
+
 ## Powershell
   <#
 .SYNOPSIS
