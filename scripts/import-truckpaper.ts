@@ -1,18 +1,28 @@
 import * as cheerio from "cheerio";
 import "dotenv/config";
 import { execFile } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { Condition, PrismaClient, TruckStatus } from "@prisma/client";
 import { chromium } from "playwright";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const prisma = new PrismaClient();
 const BASE_URL = "https://www.truckpaper.com";
 const DEFAULT_URL = `${BASE_URL}/listings/for-sale/trucks-and-trailers/all`;
 const USER_AGENT = "PrimeFleet inventory importer/1.0 (contact your site administrator)";
 const execFileAsync = promisify(execFile);
-const IMAGE_DIR = path.join(process.cwd(), "public", "uploads", "trucks");
+
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
+const R2_BUCKET = process.env.R2_BUCKET_NAME!;
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!;
 
 type Listing = {
   stockNumber: string;
@@ -200,10 +210,22 @@ async function downloadImage(sourceUrl: string, stockNumber: string): Promise<st
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   const contentType = response.headers.get("content-type");
   if (!contentType?.toLowerCase().startsWith("image/")) throw new Error("response was not an image");
-  await mkdir(IMAGE_DIR, { recursive: true });
-  const filename = `${stockNumber.toLowerCase()}.${imageExtension(contentType, sourceUrl)}`;
-  await writeFile(path.join(IMAGE_DIR, filename), Buffer.from(await response.arrayBuffer()));
-  return `/uploads/trucks/${filename}`;
+
+  const extension = imageExtension(contentType, sourceUrl);
+  const filename = `${stockNumber.toLowerCase()}.${extension}`;
+  const key = `trucks/${filename}`;
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType.split(";")[0].trim(),
+    }),
+  );
+
+  return `${R2_PUBLIC_URL}/${key}`;
 }
 
 async function populateDetailImages(listings: Listing[]): Promise<void> {
@@ -333,7 +355,7 @@ async function importListings(listings: Listing[], options: Options): Promise<vo
     if (listing.imageUrl) {
       try {
         localImageUrl = await downloadImage(listing.imageUrl, listing.stockNumber);
-        console.log(`  Downloaded image: ${localImageUrl}`);
+        console.log(`  Uploaded image: ${localImageUrl}`);
       } catch (error) {
         console.warn(`  Image skipped for ${listing.stockNumber}: ${error instanceof Error ? error.message : error}`);
       }
