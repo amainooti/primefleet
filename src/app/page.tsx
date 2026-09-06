@@ -9,6 +9,8 @@ import { TrustedBrands } from "@/components/public/TrustedBrands";
 import { getTrucks, getFilterOptions } from "@/lib/search/trucks";
 import { FAQSection } from "@/components/public/FAQSection";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const [available, { categories }] = await Promise.all([
     getTrucks({ status: "AVAILABLE" }),

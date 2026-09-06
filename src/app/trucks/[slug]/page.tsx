@@ -6,6 +6,8 @@ import { StatusBadge } from "@/components/public/StatusBadge";
 import { InquiryForm } from "@/components/public/InquiryForm";
 import { getTruckBySlug } from "@/lib/search/trucks";
 
+export const dynamic = "force-dynamic";
+
 type Params = { slug: string };
 
 export async function generateMetadata({

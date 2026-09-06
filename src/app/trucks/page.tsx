@@ -9,6 +9,8 @@ import {
   parseStatus,
 } from "@/lib/search/trucks";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = {
   q?: string;
   category?: string;
@@ -16,6 +18,7 @@ type SearchParams = {
   condition?: string;
   status?: string;
 };
+
 
 export default async function TrucksPage({
   searchParams,
