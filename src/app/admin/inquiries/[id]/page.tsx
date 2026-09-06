@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db/client";
 import { updateInquiryStatus } from "../actions";
 import { StatusSelect } from "./StatusSelect";
 
+export const dynamic = "force-dynamic";
+
 export default async function InquiryDetailPage({
   params,
 }: {

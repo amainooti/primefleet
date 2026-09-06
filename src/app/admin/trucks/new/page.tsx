@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db/client";
 import { TruckForm } from "@/components/admin/TruckForm";
 import { createTruck } from "../actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewTruckPage() {
   const categories = await prisma.category.findMany();
   return (

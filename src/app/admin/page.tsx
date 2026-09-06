@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/db/client";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboard() {
   const [statusCounts, newInquiryCount, recentInquiries] = await Promise.all([
     prisma.truck.groupBy({ by: ["status"], _count: true }),

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/client";
 import type { InquiryStatus } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_STYLES: Record<InquiryStatus, string> = {
   NEW: "bg-[#141414] text-[#D4AF37]",
   CONTACTED: "bg-[#E4E4E2] text-[#6B6E76]",

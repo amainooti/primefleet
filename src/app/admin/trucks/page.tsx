@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db/client";
 import { archiveTruck, restoreTruck } from "./actions";
 import type { TruckStatus } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_STYLES: Record<TruckStatus, string> = {
   AVAILABLE: "bg-[#141414] text-[#D4AF37]",
   RESERVED: "bg-amber-100 text-amber-800",
