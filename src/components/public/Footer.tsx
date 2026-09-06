@@ -3,8 +3,7 @@ import { FacebookIcon, WhatsappIcon } from "./SocialIcons";
 
 const SOCIAL_LINKS = [
   { label: "Facebook", href: "https://www.facebook.com/primefleetrentals", Icon: FacebookIcon },
-  { label: "WhatsApp", href: "https://wa.me/18182750595", Icon: WhatsappIcon },
-
+  { label: "WhatsApp", href: "https://wa.me/14237895319", Icon: WhatsappIcon },
 ];
 
 export function Footer() {
