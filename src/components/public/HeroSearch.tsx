@@ -19,6 +19,7 @@ export function HeroSearch() {
   const [charIndex, setCharIndex] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [typingActive, setTypingActive] = useState(true);
+  const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
     if (!typingActive || q) return;
@@ -67,14 +68,24 @@ export function HeroSearch() {
 
   return (
     <section className="relative overflow-hidden border-b border-[#141414] text-white">
+      {/* Poster shows instantly; video fades in on top once it can play */}
+      <div
+        className="absolute inset-0 h-full w-full bg-cover bg-center"
+        style={{ backgroundImage: "url(/hero-poster.jpg)" }}
+      />
+
       <video
         src="/HitPaw_Image2Video_20260903111447.mp4"
+        poster="/hero-poster.jpg"
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
-        className="absolute inset-0 h-full w-full object-cover"
+        onCanPlay={() => setVideoReady(true)}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+          videoReady ? "opacity-100" : "opacity-0"
+        }`}
       />
 
       <div className="absolute inset-0 bg-[#141414]/78" />
