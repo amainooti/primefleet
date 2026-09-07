@@ -1,6 +1,9 @@
+// src/app/trucks/page.tsx
 import { PublicShell } from "@/components/public/PublicShell";
 import { TruckCard } from "@/components/public/TruckCard";
 import { ContinueBrowsing } from "@/components/public/ContinueBrowsing";
+import { BackButton } from "@/components/public/BackButton";
+import { ScrollToTop } from "@/components/public/ScrollToTop";
 
 import {
   getFilterOptions,
@@ -40,6 +43,7 @@ export default async function TrucksPage({
     <PublicShell>
     <ContinueBrowsing />
       <div className="mx-auto max-w-6xl px-6 py-10">
+        <BackButton />
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
           <p className="mt-1 text-[#6B6E76]">
@@ -122,6 +126,7 @@ export default async function TrucksPage({
           </div>
         )}
       </div>
+      <ScrollToTop />
     </PublicShell>
   );
 }

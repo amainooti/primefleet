@@ -8,6 +8,7 @@ import { FleetShowcase } from "@/components/public/FleetShowcase";
 import { TrustedBrands } from "@/components/public/TrustedBrands";
 import { getTrucks, getFilterOptions } from "@/lib/search/trucks";
 import { FAQSection } from "@/components/public/FAQSection";
+import { ScrollToTop } from "@/components/public/ScrollToTop";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export default async function Home() {
         )}
       </section>
       <FAQSection />
+      <ScrollToTop />
     </PublicShell>
   );
 }
