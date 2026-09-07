@@ -11,13 +11,26 @@ export function ScrollToTop() {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
+    // Push the sentinel down by one viewport height so it leaves view
+    // exactly when the user has scrolled past a full screen's worth.
+    sentinel.style.top = `${window.innerHeight}px`;
+
     const observer = new IntersectionObserver(
       ([entry]) => setVisible(!entry.isIntersecting),
-      { rootMargin: "-400px 0px 0px 0px", threshold: 0 }
+      { threshold: 0 }
     );
 
     observer.observe(sentinel);
-    return () => observer.disconnect();
+
+    const handleResize = () => {
+      sentinel.style.top = `${window.innerHeight}px`;
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   const scrollToTop = () => {
@@ -26,8 +39,8 @@ export function ScrollToTop() {
 
   return (
     <>
-      {/* Invisible marker near the top of the page; once it scrolls out of view, show the button */}
-      <div ref={sentinelRef} className="pointer-events-none absolute left-0 top-0 h-px w-px" />
+      {/* Invisible marker positioned one screen-height down; button shows once it's scrolled past */}
+      <div ref={sentinelRef} className="pointer-events-none absolute left-0 h-px w-px" />
       <button
         type="button"
         onClick={scrollToTop}
