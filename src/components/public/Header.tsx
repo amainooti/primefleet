@@ -1,3 +1,4 @@
+// components/public/Header.tsx
 "use client";
 
 import Image from "next/image";
@@ -28,7 +29,7 @@ export function Header() {
   }
 
   return (
-    <header className="border-b border-[#141414]">
+    <header className="sticky top-0 z-50 border-b border-[#141414] bg-white">
       {/* Top strip */}
       <div className="border-b border-[#E4E4E2] bg-[#F7F7F6]">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-6 py-1.5 text-xs text-[#6B6E76]">
