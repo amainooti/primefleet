@@ -1,6 +1,6 @@
 services:
   primefleet-app:
-    build: .
+    image: ghcr.io/amainooti/primefleet:latest
     container_name: primefleet-app
     restart: unless-stopped
     env_file:
