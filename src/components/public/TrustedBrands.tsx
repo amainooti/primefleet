@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 type Brand = { name: string; logo: string };
 
-// Tip: hotlinking truckpaper.com can break at any time. Download the logos into
-// /public/brands/ and swap these URLs for "/brands/freightliner.png" etc.
 const BRANDS: Brand[] = [
   { name: "Freightliner", logo: "/freightliner.png" },
   { name: "International", logo: "/international.png" },
@@ -22,29 +20,35 @@ const BRANDS: Brand[] = [
 type Status = "loading" | "loaded" | "error";
 
 /**
- * Never shows a broken-image icon:
- *  - loading -> soft skeleton bar
- *  - loaded  -> the logo (greyscale, colour on hover)
- *  - error   -> the brand name as a clean text wordmark
+ * One cell of the logo wall.
+ *  - loading -> skeleton bar
+ *  - loaded  -> logo, greyscale until hovered
+ *  - error   -> brand name as a text wordmark (never a broken-image icon)
  */
-function BrandLogo({ brand }: { brand: Brand }) {
+function BrandCell({ brand }: { brand: Brand }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState<Status>("loading");
 
-  // Covers images that finished loading (or failed) before React hydrated.
+  // Covers images that finished (or failed) before React hydrated.
   useEffect(() => {
     const img = imgRef.current;
     if (img?.complete) setStatus(img.naturalWidth > 0 ? "loaded" : "error");
   }, []);
 
   return (
-    <div className="group relative flex h-14 w-40 items-center justify-center">
+    <li className="group relative flex h-32 items-center justify-center bg-white transition-colors duration-300 hover:bg-[#FAFAF8] sm:h-40">
+      {/* Gold rule draws across the top edge on hover */}
+      <span
+        aria-hidden
+        className="absolute left-0 top-0 h-0.5 w-0 bg-[#D4AF37] transition-all duration-500 ease-out group-hover:w-full"
+      />
+
       {status === "loading" && (
         <span aria-hidden className="h-3 w-24 animate-pulse rounded-full bg-[#E4E4E2]" />
       )}
 
       {status === "error" && (
-        <span className="text-xl font-bold tracking-tight text-[#6B6E76] transition-colors group-hover:text-[#141414]">
+        <span className="text-xl font-bold tracking-tight text-[#6B6E76] transition-colors duration-300 group-hover:text-[#141414]">
           {brand.name}
         </span>
       )}
@@ -58,88 +62,47 @@ function BrandLogo({ brand }: { brand: Brand }) {
           decoding="async"
           onLoad={() => setStatus("loaded")}
           onError={() => setStatus("error")}
-          className={`absolute max-h-10 w-auto max-w-[8.5rem] object-contain mix-blend-multiply grayscale transition duration-300 group-hover:grayscale-0 ${
-            status === "loaded" ? "opacity-60 group-hover:opacity-100" : "opacity-0"
+          className={`absolute max-h-12 w-auto max-w-[65%] object-contain mix-blend-multiply grayscale transition duration-500 group-hover:scale-105 group-hover:grayscale-0 ${
+            status === "loaded" ? "opacity-70 group-hover:opacity-100" : "opacity-0"
           }`}
         />
       )}
 
-      {/* Gold underline that appears on hover */}
-      <span
-        aria-hidden
-        className="absolute bottom-0 h-0.5 w-0 rounded-full bg-[#D4AF37] transition-all duration-300 group-hover:w-8"
-      />
-    </div>
-  );
-}
-
-function BrandGroup({ hidden = false }: { hidden?: boolean }) {
-  return (
-    <ul
-      className="brand-group"
-      aria-hidden={hidden || undefined}
-      aria-label={hidden ? undefined : "Brands we service"}
-    >
-      {BRANDS.map((brand) => (
-        <li key={brand.name}>
-          <BrandLogo brand={brand} />
-        </li>
-      ))}
-    </ul>
+      {/* Name slides in under the logo on hover (the wordmark already says it) */}
+      {status !== "error" && (
+        <span
+          aria-hidden
+          className="absolute bottom-4 translate-y-1 text-xs font-medium text-[#6B6E76] opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+        >
+          {brand.name}
+        </span>
+      )}
+    </li>
   );
 }
 
 export function TrustedBrands() {
   return (
-    <section className="border-y border-[#E4E4E2] bg-white">
-      <style>{`
-        .brand-marquee {
-          overflow: hidden;
-          -webkit-mask-image: linear-gradient(to right, transparent, #000 96px, #000 calc(100% - 96px), transparent);
-          mask-image: linear-gradient(to right, transparent, #000 96px, #000 calc(100% - 96px), transparent);
-        }
-        .brand-track {
-          display: flex;
-          width: max-content;
-        }
-        .brand-group {
-          display: flex;
-          flex-shrink: 0;
-          align-items: center;
-          gap: 4rem;
-          padding-right: 4rem;
-          margin: 0;
-          list-style: none;
-          animation: brand-scroll 45s linear infinite;
-          will-change: transform;
-        }
-        .brand-marquee:hover .brand-group { animation-play-state: paused; }
-        @keyframes brand-scroll { to { transform: translateX(-100%); } }
-
-        @media (prefers-reduced-motion: reduce) {
-          .brand-marquee { -webkit-mask-image: none; mask-image: none; }
-          .brand-track { width: auto; justify-content: center; }
-          .brand-group { animation: none; flex-wrap: wrap; justify-content: center; padding-right: 0; row-gap: 1.5rem; }
-          .brand-group[aria-hidden="true"] { display: none; }
-        }
-      `}</style>
-
-      <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="mb-10 max-w-xl">
-          <h2 className="text-2xl font-bold tracking-tight text-[#141414] sm:text-3xl">
-            Premium brands we service
+    <section className="bg-white">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="max-w-md text-3xl font-bold tracking-tight text-[#141414] sm:text-4xl">
+            Brands we service
           </h2>
-          <p className="mt-2 text-base text-[#6B6E76]">
-            From Freightliner to Mack, we keep the makes your fleet already runs on.
+          <p className="max-w-sm text-base leading-relaxed text-[#6B6E76]">
+            {BRANDS.length} manufacturers across tractors, trucks and trailers, serviced by one team.
           </p>
         </div>
-      </div>
 
-      <div className="brand-marquee pb-14">
-        <div className="brand-track">
-          <BrandGroup />
-          <BrandGroup hidden />
-        </div>
+        {/* gap-px over a grey background draws the hairline dividers */}
+        <ul
+          aria-label="Brands we service"
+          className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[#E4E4E2] bg-[#E4E4E2] sm:grid-cols-5"
+        >
+          {BRANDS.map((brand) => (
+            <BrandCell key={brand.name} brand={brand} />
+          ))}
+        </ul>
       </div>
     </section>
   );
