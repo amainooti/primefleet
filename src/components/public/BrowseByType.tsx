@@ -4,15 +4,18 @@ import Link from "next/link";
 type CategoryLite = { name: string; slug: string };
 
 const CATEGORY_IMAGES: Record<string, string> = {
-  flatbed: "/category-images/flatbed.png",
-  box: "/category-images/box.png",
-  van: "/category-images/van.png",
-  reefer: "/category-images/reefer.png",
-  dump: "/category-images/dump.png",
-  sleeper: "/category-images/sleeper.png",
-  daycab: "/category-images/daycab.png",
-  tank: "/category-images/tank.png",
-  lowboy: "/category-images/lowboy.png",
+  "Box": "/category-images/box.png",
+  "Box Trucks": "/category-images/box-tandem.png",
+  "Flatbed Trucks": "/category-images/flatbed-truck.png",
+  "Flatbed Trailers": "/category-images/flatbed.png",
+  "Drop Deck Trailers": "/category-images/lowboy.png",
+  "Day Cab Trucks": "/category-images/daycab.png",
+  "Sleeper Trucks": "/category-images/sleeper.png",
+  "Tow Trucks": "/category-images/tow.png",
+  "Reefer Trailers": "/category-images/reefer.png",
+  "Dry Van Trailers": "/category-images/van.png",
+  "Expeditor Trucks": "/category-images/cargo-van.png",
+  // "Tank Trailers": no silhouette yet
 };
 
 const FALLBACK_POOL = Object.values(CATEGORY_IMAGES);
