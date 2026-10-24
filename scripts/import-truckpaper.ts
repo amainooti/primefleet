@@ -1,8 +1,7 @@
 import * as cheerio from "cheerio";
 import "dotenv/config";
-import { execFile } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { promisify } from "node:util";
 import { Condition, PrismaClient, TruckStatus } from "@prisma/client";
 import { chromium } from "playwright";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -11,7 +10,7 @@ const prisma = new PrismaClient();
 const BASE_URL = "https://www.truckpaper.com";
 const DEFAULT_URL = `${BASE_URL}/listings/for-sale/trucks-and-trailers/all`;
 const USER_AGENT = "PrimeFleet inventory importer/1.0 (contact your site administrator)";
-const execFileAsync = promisify(execFile);
+const CDP_ENDPOINT = "http://localhost:9222";
 
 const r2 = new S3Client({
   region: "auto",
@@ -164,7 +163,7 @@ async function buildSingleListing(url: string, useCdp: boolean): Promise<Listing
   const id = listingIdFromUrl(url);
   if (!id) throw new Error(`Could not extract a listing id from URL: ${url}`);
 
-  const html = await fetchPage(url, useCdp);
+  const html = await fetchPage(url, useCdp, "meta[property='og:title'], h1");
   const $ = cheerio.load(html);
 
   const ogTitle = cleanText($("meta[property='og:title']").attr("content"));
@@ -229,9 +228,9 @@ async function downloadImage(sourceUrl: string, stockNumber: string): Promise<st
 }
 
 async function populateDetailImages(listings: Listing[]): Promise<void> {
-  const browser = await chromium.connectOverCDP("http://localhost:9222");
+  const browser = await chromium.connectOverCDP(CDP_ENDPOINT);
   const context = browser.contexts()[0];
-  if (!context) throw new Error("No browser context found at localhost:9222");
+  if (!context) throw new Error(`No browser context found at ${CDP_ENDPOINT}`);
   const page = await context.newPage();
   try {
     for (const listing of listings) {
@@ -284,44 +283,42 @@ async function populateDetailImages(listings: Listing[]): Promise<void> {
   }
 }
 
-async function fetchPage(url: string, useCdp: boolean): Promise<string> {
+// readySelector: an element that must exist before the HTML is read, so we
+// don't grab the page before the client-side render has produced the content.
+async function fetchPage(
+  url: string,
+  useCdp: boolean,
+  readySelector = "a[href*='/listing/for-sale/']",
+): Promise<string> {
   if (useCdp) {
-    const browser = await chromium.connectOverCDP("http://localhost:9222");
+    const browser = await chromium.connectOverCDP(CDP_ENDPOINT);
     const context = browser.contexts()[0];
-    if (!context) throw new Error("No browser context found at localhost:9222");
+    if (!context) throw new Error(`No browser context found at ${CDP_ENDPOINT}`);
     const page = await context.newPage();
     try {
-        await page.goto(url, { waitUntil: "commit", timeout: 30_000 }).catch((error: unknown) => {
-          if (!(error instanceof Error) || !error.message.includes("ERR_ABORTED")) throw error;
-          console.warn("  Navigation interrupted; reading the committed page.");
-        });
-        console.log(`  -> landed on: ${page.url()} | title: ${await page.title()}`);
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch((error: unknown) => {
+        if (!(error instanceof Error) || !error.message.includes("ERR_ABORTED")) throw error;
+        console.warn("  Navigation interrupted; reading the committed page.");
+      });
+      await page.waitForSelector(readySelector, { timeout: 20_000, state: "attached" }).catch(() => {
+        console.warn(`  "${readySelector}" did not appear within 20s.`);
+      });
+      console.log(`  -> landed on: ${page.url()} | title: ${await page.title()}`);
 
-        return await page.locator("html").evaluate((element) => element.outerHTML);
+      return await page.locator("html").evaluate((element) => element.outerHTML);
     } finally {
-        if (!page.isClosed()) await page.close();
+      if (!page.isClosed()) await page.close();
     }
-    }
+  }
 
   const response = await fetch(url, {
     headers: { "user-agent": USER_AGENT, accept: "text/html" },
     signal: AbortSignal.timeout(30_000),
   });
   if (response.ok) return response.text();
-
-  try {
-    const result = await execFileAsync("curl.exe", [
-      "-L",
-      "-sS",
-      "-A",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
-      "-H",
-      "Accept: text/html,application/xhtml+xml",
-      url,
-    ]);
-    if (result.stdout.trim()) return result.stdout;
-  } catch {}
-  throw new Error(`${response.status} ${response.statusText} for ${url}; TruckPaper may require an approved feed or browser session`);
+  throw new Error(
+    `${response.status} ${response.statusText} for ${url}; re-run with --cdp to use your approved browser session, or use an approved TruckPaper feed`,
+  );
 }
 
 function pageUrl(url: string, page: number): string {
@@ -427,12 +424,23 @@ async function main() {
   for (let page = 1; page <= options.pages; page += 1) {
     const url = pageUrl(options.url, page);
     console.log(`Fetching page ${page}/${options.pages}: ${url}`);
-    const pageListings = parseListings(await fetchPage(url, options.cdp));
+    const html = await fetchPage(url, options.cdp);
+    const pageListings = parseListings(html);
+    console.log(`  Parsed ${pageListings.length} listing(s) from page ${page}`);
+    if (pageListings.length === 0) {
+      const debugFile = `debug-page-${page}.html`;
+      writeFileSync(debugFile, html);
+      console.warn(`  Nothing parsed; saved the page HTML to ${debugFile} so you can inspect the link format.`);
+    }
     for (const listing of pageListings) listings.set(listing.stockNumber, listing);
     if (page < options.pages) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
   }
 
   const selected = [...listings.values()].slice(0, options.limit);
+  if (selected.length === 0) {
+    console.warn("No listings found; nothing to import. The database was not touched.");
+    return;
+  }
   if (options.write && options.cdp) await populateDetailImages(selected);
   await importListings(selected, options);
 }

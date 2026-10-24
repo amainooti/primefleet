@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { CATEGORY_ICONS, TruckIcon, type TruckIconName } from "../../components/public/TruckIcon";
+import { CATEGORY_ICONS, TruckIcon, type TruckIconName } from "@/components/public/TruckIcon";
 
 type CategoryLite = { name: string; slug: string };
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+// Categories that should never appear here (matched by slug, so "Box" -> "box").
+const EXCLUDED_SLUGS = new Set(["box"]);
 
 // Same map, keyed by slug, so it works whether you look up by name or slug.
 const ICON_BY_SLUG: Record<string, TruckIconName> = Object.fromEntries(
@@ -25,7 +28,10 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export function BrowseByType({ categories }: { categories: CategoryLite[] }) {
+export function BrowseByType({ categories: allCategories }: { categories: CategoryLite[] }) {
+  const categories = allCategories.filter(
+    (c) => !EXCLUDED_SLUGS.has(c.slug) && !EXCLUDED_SLUGS.has(slugify(c.name)),
+  );
   if (categories.length === 0) return null;
 
   return (
