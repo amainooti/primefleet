@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { FacebookIcon, WhatsappIcon } from "./SocialIcons";
 
-const SOCIAL_LINKS = [
-  { label: "Facebook", href: "https://www.facebook.com/primefleetrentals", Icon: FacebookIcon },
-];
+
 
 export function Footer() {
   return (
@@ -37,8 +35,8 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-[#D4AF37]">Follow</p>
-            <div className="mt-4 flex gap-3">
+            {/* <p className="text-sm font-semibold text-[#D4AF37]">Follow</p> */}
+            {/* <div className="mt-4 flex gap-3">
               {SOCIAL_LINKS.map(({ label, href, Icon }) => (
                 <Link
                   key={label}
@@ -49,7 +47,7 @@ export function Footer() {
                   <Icon className="h-4 w-4" />
                 </Link>
               ))}
-            </div>
+            </div> */}
           </div>
         </div>
 
