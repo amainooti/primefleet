@@ -61,7 +61,7 @@ Prime Fleet is a **fleet inventory/catalogue platform** for a single owner to ma
 - condition (NEW | USED)
 - status (AVAILABLE | RESERVED | RENTED | MAINTENANCE | ARCHIVED)
 - rateDisplay (e.g., "$450/day")
-- location (e.g., "Austin, TX")
+- location (e.g., "3330 E Foothill Blvd Apt 213, Pasadena, CA 91107")
 - createdAt, updatedAt
 - Relations: Category, TruckImage[], Specification[], Inquiry[]
 ```

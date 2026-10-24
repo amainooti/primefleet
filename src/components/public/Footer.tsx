@@ -30,7 +30,7 @@ export function Footer() {
             <ul className="mt-4 space-y-2 text-sm text-white/70">
               <li>rentalprimefleet@gmail.com</li>
               <li>+1 818 275 0595</li>
-              <li>Austin, TX</li>
+              <li>3330 E Foothill Blvd Apt 213, Pasadena, CA 91107</li>
             </ul>
           </div>
 

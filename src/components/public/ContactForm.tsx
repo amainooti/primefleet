@@ -137,7 +137,7 @@ export function ContactForm() {
                 <div>
                   <p className="text-sm font-semibold text-[#6B6E76]">Location</p>
                   <p className="mt-1 text-lg font-semibold text-[#141414]">
-                    Austin, TX
+                    3330 E Foothill Blvd Apt 213, Pasadena, CA 91107
                   </p>
                 </div>
               </div>

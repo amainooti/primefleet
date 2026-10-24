@@ -31,7 +31,7 @@ async function main() {
       condition: Condition.NEW,
       status: TruckStatus.AVAILABLE,
       rateDisplay: "$450/day",
-      location: "Austin, TX",
+      location: "3330 E Foothill Blvd Apt 213, Pasadena, CA 91107",
       images: {
         create: [
           {
@@ -71,7 +71,7 @@ async function main() {
       condition: Condition.USED,
       status: TruckStatus.AVAILABLE,
       rateDisplay: "$220/day",
-      location: "Austin, TX",
+      location: "3330 E Foothill Blvd Apt 213, Pasadena, CA 91107",
       images: {
         create: [
           {
