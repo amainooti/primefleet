@@ -4,15 +4,15 @@ import Link from "next/link";
 type CategoryLite = { name: string; slug: string };
 
 const CATEGORY_IMAGES: Record<string, string> = {
-  flatbed: "https://images.unsplash.com/photo-1591768793355-74d04bb6608f?auto=format&fit=crop&w=800&q=80",
-  box: "https://images.unsplash.com/photo-1670509295484-df0c2512fec4?auto=format&fit=crop&w=800&q=80",
-  van: "https://images.unsplash.com/photo-1473445730015-841f29a9490b?auto=format&fit=crop&w=800&q=80",
-  reefer: "https://images.unsplash.com/photo-1586191552066-d52dd1e3af86?auto=format&fit=crop&w=800&q=80",
-  dump: "https://images.unsplash.com/photo-1586206670130-4c6d8e646c9a?auto=format&fit=crop&w=800&q=80",
-  sleeper: "https://images.unsplash.com/photo-1695222833131-54ee679ae8e5?auto=format&fit=crop&w=800&q=80",
-  daycab: "https://images.unsplash.com/photo-1501700493788-fa1a4fc9fe62?auto=format&fit=crop&w=800&q=80",
-  tank: "https://images.unsplash.com/photo-1618582948377-cd7eb0e8cb14?auto=format&fit=crop&w=800&q=80",
-  lowboy: "https://images.unsplash.com/photo-1694113372786-2553caec0c76?auto=format&fit=crop&w=800&q=80",
+  flatbed: "/category-images/flatbed.png",
+  box: "/category-images/box.png",
+  van: "/category-images/van.png",
+  reefer: "/category-images/reefer.png",
+  dump: "/category-images/dump.png",
+  sleeper: "/category-images/sleeper.png",
+  daycab: "/category-images/daycab.png",
+  tank: "/category-images/tank.png",
+  lowboy: "/category-images/lowboy.png",
 };
 
 const FALLBACK_POOL = Object.values(CATEGORY_IMAGES);
