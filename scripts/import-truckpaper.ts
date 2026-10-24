@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import "dotenv/config";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { Condition, PrismaClient, TruckStatus } from "@prisma/client";
 import { chromium } from "playwright";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -44,7 +45,8 @@ type Options = {
   delayMs: number;
   limit?: number;
   write: boolean;
-  categoryName: string;
+  categoryName?: string;
+  createCategory: boolean;
   cdp: boolean;
 };
 
@@ -79,7 +81,11 @@ function parseOptions(): Options {
     delayMs: numberOption("--delay", 1500),
     limit: valueAfter("--limit") ? numberOption("--limit", 1) : undefined,
     write: args.includes("--write"),
-    categoryName: valueAfter("--category") ?? "TruckPaper Inventory",
+    categoryName: (() => {
+      const value = valueAfter("--category");
+      return value && !value.startsWith("--") ? value : undefined;
+    })(),
+    createCategory: args.includes("--create-category"),
     cdp: args.includes("--cdp"),
   };
 }
@@ -328,8 +334,84 @@ function pageUrl(url: string, page: number): string {
   return parsed.toString();
 }
 
-async function importListings(listings: Listing[], options: Options): Promise<void> {
-  const categorySlug = slugify(options.categoryName) || "truckpaper-inventory";
+// Guesses the category from the TruckPaper URL, e.g. .../listings/for-sale/box-trucks/16004
+// -> "box-trucks" -> the existing "Box Trucks" category. Single-listing URLs carry no
+// category segment, so they get no suggestion.
+function suggestCategory(
+  options: Options,
+  categories: Array<{ id: string; name: string; slug: string }>,
+): { id: string; name: string; slug: string } | undefined {
+  if (options.listingUrl) return undefined;
+  const segment = new URL(options.url).pathname.split("/").filter(Boolean)[2];
+  if (!segment) return undefined;
+  const singular = (value: string) => value.replace(/s$/, "");
+  return (
+    categories.find((category) => category.slug === segment) ??
+    categories.find((category) => singular(category.slug) === singular(segment))
+  );
+}
+
+// Picks the category for --write runs. Never silently creates one:
+//  - --category "Box Trucks"  -> must match an existing category (by slug)
+//  - --create-category        -> allows creating a new one with that name
+//  - no --category            -> shows the existing categories and asks you to pick
+async function resolveCategory(options: Options): Promise<{ id: string; name: string }> {
+  const categories = await prisma.category.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, slug: true },
+  });
+
+  let name = options.categoryName;
+
+  if (!name) {
+    if (!process.stdin.isTTY) {
+      throw new Error('--category is required with --write (for example: --category "Box Trucks")');
+    }
+    const suggestion = suggestCategory(options, categories);
+    console.log("\nNo --category given. Existing categories:");
+    categories.forEach((category, index) => console.log(`  ${index + 1}. ${category.name}`));
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      const prompt = suggestion
+        ? `\nSuggested: ${suggestion.name} (matched from the URL). Press Enter to accept, type a number to pick another, or q to cancel: `
+        : "\nEnter a number (or q to cancel): ";
+      const answer = (await rl.question(prompt)).trim();
+      if (answer === "" && suggestion) {
+        console.log(`Using category: ${suggestion.name}\n`);
+        return { id: suggestion.id, name: suggestion.name };
+      }
+      const choice = Number(answer);
+      if (!Number.isInteger(choice) || choice < 1 || choice > categories.length) {
+        throw new Error("Cancelled: no category selected. Nothing was written.");
+      }
+      const picked = categories[choice - 1];
+      console.log(`Using category: ${picked.name}\n`);
+      return { id: picked.id, name: picked.name };
+    } finally {
+      rl.close();
+    }
+  }
+
+  const slug = slugify(name);
+  const match = categories.find((category) => category.slug === slug);
+  if (match) return { id: match.id, name: match.name };
+
+  if (!options.createCategory) {
+    throw new Error(
+      `No category matches "${name}". Existing categories: ${categories.map((c) => c.name).join(", ")}.\n` +
+        `Use one of those exactly, or add --create-category to create "${name}".`,
+    );
+  }
+  const created = await prisma.category.create({ data: { name, slug } });
+  console.log(`Created new category: ${created.name}`);
+  return { id: created.id, name: created.name };
+}
+
+async function importListings(
+  listings: Listing[],
+  options: Options,
+  category?: { id: string; name: string },
+): Promise<void> {
   if (!options.write) {
     console.log(`Dry run: ${listings.length} listing(s) parsed. Pass --write to save them.`);
     for (const listing of listings) {
@@ -338,11 +420,8 @@ async function importListings(listings: Listing[], options: Options): Promise<vo
     return;
   }
 
-  const category = await prisma.category.upsert({
-    where: { slug: categorySlug },
-    update: { name: options.categoryName },
-    create: { name: options.categoryName, slug: categorySlug },
-  });
+  if (!category) throw new Error("A category is required with --write.");
+  console.log(`Category: ${category.name}`);
   let created = 0;
   let updated = 0;
 
@@ -412,11 +491,14 @@ async function importListings(listings: Listing[], options: Options): Promise<vo
 async function main() {
   const options = parseOptions();
 
+  // Settle the category before any browsing, so a missing/wrong one fails fast.
+  const category = options.write ? await resolveCategory(options) : undefined;
+
   if (options.listingUrl) {
     console.log(`Fetching single listing: ${options.listingUrl}`);
     const listing = await buildSingleListing(options.listingUrl, options.cdp);
     if (options.write && options.cdp) await populateDetailImages([listing]);
-    await importListings([listing], options);
+    await importListings([listing], options, category);
     return;
   }
 
@@ -442,7 +524,7 @@ async function main() {
     return;
   }
   if (options.write && options.cdp) await populateDetailImages(selected);
-  await importListings(selected, options);
+  await importListings(selected, options, category);
 }
 
 main()
