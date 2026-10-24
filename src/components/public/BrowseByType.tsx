@@ -1,29 +1,28 @@
-import Image from "next/image";
 import Link from "next/link";
+import { CATEGORY_ICONS, TruckIcon, type TruckIconName } from "../../components/public/TruckIcon";
 
 type CategoryLite = { name: string; slug: string };
 
-const CATEGORY_IMAGES: Record<string, string> = {
-  "Box": "/category-images/box.png",
-  "Box Trucks": "/category-images/box-tandem.png",
-  "Flatbed Trucks": "/category-images/flatbed-truck.png",
-  "Flatbed Trailers": "/category-images/flatbed.png",
-  "Drop Deck Trailers": "/category-images/lowboy.png",
-  "Day Cab Trucks": "/category-images/daycab.png",
-  "Sleeper Trucks": "/category-images/sleeper.png",
-  "Tow Trucks": "/category-images/tow.png",
-  "Reefer Trailers": "/category-images/reefer.png",
-  "Dry Van Trailers": "/category-images/van.png",
-  "Expeditor Trucks": "/category-images/cargo-van.png",
-  // "Tank Trailers": no silhouette yet
-};
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-const FALLBACK_POOL = Object.values(CATEGORY_IMAGES);
+// Same map, keyed by slug, so it works whether you look up by name or slug.
+const ICON_BY_SLUG: Record<string, TruckIconName> = Object.fromEntries(
+  Object.entries(CATEGORY_ICONS).map(([name, icon]) => [slugify(name), icon]),
+);
 
-function imageForSlug(slug: string, index: number) {
-  const s = slug.toLowerCase();
-  const key = Object.keys(CATEGORY_IMAGES).find((k) => s.includes(k));
-  return key ? CATEGORY_IMAGES[key] : FALLBACK_POOL[index % FALLBACK_POOL.length];
+// No random fallback: a category without an icon gets a neutral placeholder,
+// so one image is never reused for a different category.
+function iconFor(category: CategoryLite): TruckIconName | null {
+  return CATEGORY_ICONS[category.name] ?? ICON_BY_SLUG[category.slug] ?? ICON_BY_SLUG[slugify(category.name)] ?? null;
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
 }
 
 export function BrowseByType({ categories }: { categories: CategoryLite[] }) {
@@ -42,31 +41,42 @@ export function BrowseByType({ categories }: { categories: CategoryLite[] }) {
         </div>
 
         <div className="mt-12 grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {categories.map((category, index) => (
-            <Link
-              key={category.slug}
-              href={`/trucks?category=${category.slug}`}
-              className="group flex flex-col items-center text-center"
-            >
-              {/* Fixed-size icon box: image is contained, never cropped */}
-              <div className="relative h-20 w-full max-w-[140px] sm:h-24">
-                <Image
-                  src={imageForSlug(category.slug, index)}
-                  alt={category.name}
-                  fill
-                  sizes="140px"
-                  className="object-contain transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
+          {categories.map((category) => {
+            const icon = iconFor(category);
+            return (
+              <Link
+                key={category.slug}
+                href={`/trucks?category=${category.slug}`}
+                className="group flex flex-col items-center text-center"
+              >
+                {/* Fixed-size icon box: the icon is contained, never cropped.
+                    Wheels spin while the card is hovered (the Link has `group`). */}
+                <div className="relative h-20 w-full max-w-[140px] sm:h-24">
+                  {icon ? (
+                    <TruckIcon
+                      name={icon}
+                      title={category.name}
+                      className="h-full w-full text-[#141414] transition-colors duration-300 group-hover:text-[#D4AF37]"
+                    />
+                  ) : (
+                    <div
+                      aria-hidden
+                      className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-[#E4E4E2] text-2xl font-bold text-[#C9CBD0]"
+                    >
+                      {initials(category.name)}
+                    </div>
+                  )}
+                </div>
 
-              <span className="mt-4 text-sm font-medium leading-tight text-[#141414] sm:text-base">
-                {category.name}
-              </span>
+                <span className="mt-4 text-sm font-medium leading-tight text-[#141414] sm:text-base">
+                  {category.name}
+                </span>
 
-              {/* Gold underline, grows in on hover */}
-              <span className="mt-2 h-0.5 w-full max-w-[120px] origin-center scale-x-0 bg-[#D4AF37] transition-transform duration-200 group-hover:scale-x-100" />
-            </Link>
-          ))}
+                {/* Gold underline, grows in on hover */}
+                <span className="mt-2 h-0.5 w-full max-w-[120px] origin-center scale-x-0 bg-[#D4AF37] transition-transform duration-200 group-hover:scale-x-100" />
+              </Link>
+            );
+          })}
 
           <Link
             href="/trucks"
