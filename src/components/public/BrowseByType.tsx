@@ -29,41 +29,55 @@ export function BrowseByType({ categories }: { categories: CategoryLite[] }) {
   return (
     <section className="border-b border-[#E4E4E2] bg-white">
       <div className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="text-2xl font-bold tracking-tight">Browse by type</h2>
-        <p className="mt-2 max-w-md text-[#6B6E76]">
-          Jump straight to the equipment you need.
-        </p>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight text-[#141414]">
+            Browse by type
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-[#6B6E76]">
+            Jump straight to the equipment you need.
+          </p>
+        </div>
 
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="mt-12 grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {categories.map((category, index) => (
             <Link
               key={category.slug}
               href={`/trucks?category=${category.slug}`}
-              className="group relative aspect-[4/3] overflow-hidden"
+              className="group flex flex-col items-center text-center"
             >
-              <Image
-                src={imageForSlug(category.slug, index)}
-                alt={category.name}
-                fill
-                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-              <span className="absolute bottom-0 left-0 right-0 p-4 text-sm font-semibold text-white">
+              {/* Fixed-size icon box: image is contained, never cropped */}
+              <div className="relative h-20 w-full max-w-[140px] sm:h-24">
+                <Image
+                  src={imageForSlug(category.slug, index)}
+                  alt={category.name}
+                  fill
+                  sizes="140px"
+                  className="object-contain transition-transform duration-300 group-hover:scale-105"
+                />
+              </div>
+
+              <span className="mt-4 text-sm font-medium leading-tight text-[#141414] sm:text-base">
                 {category.name}
               </span>
+
+              {/* Gold underline, grows in on hover */}
+              <span className="mt-2 h-0.5 w-full max-w-[120px] origin-center scale-x-0 bg-[#D4AF37] transition-transform duration-200 group-hover:scale-x-100" />
             </Link>
           ))}
+
           <Link
             href="/trucks"
-            className="group relative flex aspect-[4/3] flex-col items-center justify-center gap-2 border border-[#E4E4E2] bg-[#F7F7F6] text-center transition-colors hover:border-[#D4AF37] hover:bg-[#141414]"
+            className="group flex flex-col items-center text-center"
           >
-            <span className="text-2xl font-semibold text-[#141414] group-hover:text-[#D4AF37]">
-              +
-            </span>
-            <span className="text-sm font-semibold text-[#141414] group-hover:text-white">
+            <div className="flex h-20 w-full max-w-[140px] items-center justify-center sm:h-24">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#141414] text-3xl font-light leading-none text-[#141414] transition-colors group-hover:border-[#D4AF37] group-hover:text-[#D4AF37]">
+                +
+              </span>
+            </div>
+            <span className="mt-4 text-sm font-medium leading-tight text-[#141414] sm:text-base">
               View all inventory
             </span>
+            <span className="mt-2 h-0.5 w-full max-w-[120px] origin-center scale-x-0 bg-[#D4AF37] transition-transform duration-200 group-hover:scale-x-100" />
           </Link>
         </div>
       </div>
