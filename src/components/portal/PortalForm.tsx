@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, startTransition, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import type { PortalFormState } from "@/app/portal/actions";
-import { DOCUMENT_KINDS, MAX_FILE_SIZE } from "@/lib/portal/constants";
+import { DOCUMENT_KINDS, MAX_FILE_SIZE, MAX_STEPS, STEP_PRESETS } from "@/lib/portal/constants";
 import type { PortalFormValues } from "./types";
 
 type Props = {
@@ -80,6 +80,13 @@ function Section({
 let rowId = 0;
 const nextId = () => ++rowId;
 
+const STEP_STATUS_LABEL: Record<string, string> = {
+  DONE: "Done",
+  PENDING: "Pending",
+  TODO: "Not started",
+};
+const norm = (v: string) => v.trim().toLowerCase();
+
 export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles, acceptAttr }: Props) {
   const [state, formAction, pending] = useActionState(action, {} as PortalFormState);
   const fe = state.fieldErrors ?? {};
@@ -91,6 +98,31 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
     initial.charges.map((c) => ({ ...c, id: nextId() }))
   );
   const [docs, setDocs] = useState<{ id: number }[]>([]);
+
+  const doneCount = steps.filter((s) => s.status === "DONE").length;
+  const pct = steps.length ? Math.round((doneCount / steps.length) * 100) : 0;
+
+  function updateStep(id: number, patch: Partial<{ label: string; status: string }>) {
+    setSteps((x) => x.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+  function addPreset(label: string, status: string) {
+    setSteps((x) =>
+      x.length >= MAX_STEPS || x.some((r) => norm(r.label) === norm(label))
+        ? x
+        : [...x, { id: nextId(), label, status }]
+    );
+  }
+  function addAllPresets() {
+    setSteps((x) => {
+      const next = [...x];
+      for (const p of STEP_PRESETS) {
+        if (next.length >= MAX_STEPS) break;
+        if (!next.some((r) => norm(r.label) === norm(p.label)))
+          next.push({ id: nextId(), label: p.label, status: p.status });
+      }
+      return next;
+    });
+  }
 
   // Submit through startTransition (rather than <form action>) so React does not
   // reset the form — typed values and chosen files survive a validation error.
@@ -134,20 +166,90 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
         </div>
       </Section>
 
-      <Section title="Onboarding progress" description="The checklist shown on the dashboard. Progress % is calculated from completed steps.">
+      <Section
+        title="Onboarding progress"
+        description="The milestones your client sees on the dashboard. Pick from the standard steps below or add your own, then set each one to Done, Pending or Not started. The progress bar = Done steps ÷ all steps."
+      >
+        <datalist id="step-presets">
+          {STEP_PRESETS.map((p) => (
+            <option key={p.label} value={p.label} />
+          ))}
+        </datalist>
+
+        {/* Quick add: the standard steps, one click each */}
+        <div>
+          <p className={label}>Standard steps — tap to add</p>
+          <div className="flex flex-wrap gap-2">
+            {STEP_PRESETS.map((p) => {
+              const added = steps.some((s) => norm(s.label) === norm(p.label));
+              const full = steps.length >= MAX_STEPS;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  disabled={added || full}
+                  onClick={() => addPreset(p.label, p.status)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    added
+                      ? "cursor-default border-green-200 bg-green-50 text-green-700"
+                      : "border-[#d9dce3] bg-white text-[#141414] hover:border-[#D4AF37] hover:bg-[#fffaf0] disabled:opacity-50"
+                  }`}
+                >
+                  {added ? <Check size={13} strokeWidth={3} /> : <Plus size={13} />}
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          {STEP_PRESETS.some((p) => !steps.some((s) => norm(s.label) === norm(p.label))) && (
+            <button
+              type="button"
+              onClick={addAllPresets}
+              className="mt-2 text-xs font-semibold text-[#6B6E76] underline hover:text-[#141414]"
+            >
+              Add all missing standard steps
+            </button>
+          )}
+        </div>
+
+        {/* Live progress preview */}
+        <div className="rounded-lg bg-[#f4f5fa] p-3">
+          <div className="flex items-center justify-between text-xs font-bold text-[#141414]">
+            <span>
+              {steps.length === 0
+                ? "No steps yet"
+                : `${doneCount} of ${steps.length} step${steps.length === 1 ? "" : "s"} done`}
+            </span>
+            <span>{pct}%</span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#e4e8ef]">
+            <div className="h-full rounded-full bg-[#15803d] transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
         {steps.map((s) => (
           <div key={s.id} className="flex gap-2">
             <input
               name="step_label"
-              defaultValue={s.label}
-              placeholder="Step name"
+              value={s.label}
+              onChange={(e) => updateStep(s.id, { label: e.target.value })}
+              list="step-presets"
+              placeholder="Step name, e.g. Final Yard Pickup"
               className={input}
               aria-label="Step name"
             />
-            <select name="step_status" defaultValue={s.status} className={`${input} w-40 shrink-0`} aria-label="Step status">
-              <option value="DONE">Done</option>
-              <option value="PENDING">Pending</option>
-              <option value="TODO">Not started</option>
+            <select
+              name="step_status"
+              value={s.status}
+              onChange={(e) => updateStep(s.id, { status: e.target.value })}
+              className={`${input} w-40 shrink-0`}
+              aria-label="Step status"
+            >
+              {Object.entries(STEP_STATUS_LABEL).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
             </select>
             <button type="button" onClick={() => setSteps((x) => x.filter((r) => r.id !== s.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove step">
               <Trash2 size={16} />
@@ -155,9 +257,9 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
           </div>
         ))}
         {fe.steps && <p className="text-xs text-red-600">{fe.steps}</p>}
-        {steps.length < 12 && (
+        {steps.length < MAX_STEPS && (
           <button type="button" onClick={() => setSteps((x) => [...x, { id: nextId(), label: "", status: "TODO" }])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] hover:text-[#b8941f]">
-            <Plus size={15} /> Add step
+            <Plus size={15} /> Add custom step
           </button>
         )}
         <div className="grid gap-4 border-t border-[#eee] pt-4 sm:grid-cols-[1fr_200px]">

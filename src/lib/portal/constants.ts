@@ -15,6 +15,10 @@ export const DEFAULT_STEPS = [
   { label: "Final Yard Pickup", status: "TODO" },
 ] as const;
 
+// Quick-pick choices in the onboarding editor (same as the defaults, selectable one by one).
+export const STEP_PRESETS = DEFAULT_STEPS;
+export const MAX_STEPS = 12;
+
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB each
 export const MAX_FILES_PER_REQUEST = 4; // actual files per submit (keeps body under the limit)
 export const MAX_FILES_PER_PORTAL = 25;
