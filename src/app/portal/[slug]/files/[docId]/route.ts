@@ -19,7 +19,9 @@ export async function GET(
   const doc = await prisma.portalDocument.findFirst({
     where: { id: docId, portal: { slug } },
   });
-  if (!doc) return new Response("Not found", { status: 404 });
+  if (!doc || !doc.storedName || !doc.mimeType || !doc.fileName) {
+    return new Response("Not found", { status: 404 });
+  }
 
   let data: Buffer;
   try {

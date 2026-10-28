@@ -9,9 +9,13 @@ const ROOT = process.env.PORTAL_UPLOAD_DIR
   ? path.resolve(process.env.PORTAL_UPLOAD_DIR)
   : path.join(process.cwd(), "storage", "portal");
 
-export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB each
-export const MAX_FILES_PER_REQUEST = 4; // keeps a single request under the body limit
-export const MAX_FILES_PER_PORTAL = 25;
+import { MAX_FILE_SIZE } from "./constants";
+export {
+  ACCEPT_ATTR,
+  MAX_FILE_SIZE,
+  MAX_FILES_PER_PORTAL,
+  MAX_FILES_PER_REQUEST,
+} from "./constants";
 
 export class PortalStorageError extends Error {}
 
@@ -38,8 +42,6 @@ function sniff(buf: Buffer): Kind | null {
     };
   return null;
 }
-
-export const ACCEPT_ATTR = ".pdf,.jpg,.jpeg,.png,.webp,.docx";
 
 function safeName(name: string) {
   const base = name.replace(/[\\/]/g, "_").replace(/[^\w.\- ()]/g, "_").trim();

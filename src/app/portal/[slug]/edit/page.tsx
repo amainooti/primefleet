@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 import { PortalForm } from "@/components/portal/PortalForm";
 import { loadPortalForManage, portalPaths } from "@/lib/portal/access";
 import { updatePortal } from "../../actions";
-import { ACCEPT_ATTR, MAX_FILES_PER_PORTAL, MAX_FILES_PER_REQUEST } from "@/lib/portal/storage";
+import {
+  ACCEPT_ATTR,
+  MAX_DOC_ROWS_PER_REQUEST,
+  MAX_FILES_PER_PORTAL,
+  MAX_FILES_PER_REQUEST,
+} from "@/lib/portal/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +24,7 @@ export default async function EditPortalPage({
   const portal = await loadPortalForManage(slug, key);
   if (!portal || !key) notFound();
 
-  const room = Math.max(0, Math.min(MAX_FILES_PER_REQUEST, MAX_FILES_PER_PORTAL - portal.documents.length));
+  const room = Math.max(0, Math.min(MAX_DOC_ROWS_PER_REQUEST, MAX_FILES_PER_PORTAL - portal.documents.length));
 
   return (
     <main className="min-h-screen bg-[#f4f5fa] px-4 py-10">
@@ -39,6 +44,9 @@ export default async function EditPortalPage({
             alertText: portal.alertText ?? "",
             alertActionLabel: portal.alertActionLabel ?? "",
             maintenanceNotes: portal.maintenanceNotes ?? "",
+            supportName: portal.supportName ?? "",
+            supportEmail: portal.supportEmail ?? "",
+            supportPhone: portal.supportPhone ?? "",
             vehicleTitle: portal.vehicleTitle,
             vehicleStatus: portal.vehicleStatus,
             stockNumber: portal.stockNumber ?? "",
@@ -52,11 +60,13 @@ export default async function EditPortalPage({
               label: c.label,
               note: c.note ?? "",
               amount: c.amount,
-              status: c.status,
+              suffix: c.suffix ?? "",
+              status: c.status ?? "NONE",
             })),
           }}
           submitLabel="Save changes"
           maxNewFiles={room}
+          maxFiles={MAX_FILES_PER_REQUEST}
           acceptAttr={ACCEPT_ATTR}
         />
       </div>

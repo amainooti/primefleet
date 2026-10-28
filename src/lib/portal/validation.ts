@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CHARGE_STATUSES, STEP_STATUSES } from "./constants";
+import { CHARGE_STATUS_OR_NONE, STEP_STATUSES } from "./constants";
 
 const opt = (max: number) =>
   z
@@ -24,6 +24,15 @@ export const portalSchema = z.object({
   alertText: opt(300),
   alertActionLabel: opt(40),
   maintenanceNotes: opt(2000),
+  supportName: opt(80),
+  supportEmail: z
+    .string()
+    .trim()
+    .max(160)
+    .optional()
+    .refine((v) => !v || z.email().safeParse(v).success, "Enter a valid email.")
+    .transform((v) => (v ? v : undefined)),
+  supportPhone: opt(40),
   vehicleTitle: z.string().trim().min(1, "Vehicle name is required.").max(160),
   vehicleStatus: z.string().trim().min(1).max(60),
   stockNumber: opt(40),
@@ -43,7 +52,8 @@ export const chargeSchema = z.object({
   label: z.string().trim().min(1).max(120),
   note: opt(160),
   amount: z.string().trim().min(1).max(30),
-  status: z.enum(CHARGE_STATUSES),
+  suffix: opt(20),
+  status: z.enum(CHARGE_STATUS_OR_NONE).transform((v) => (v === "NONE" ? null : v)),
 });
 
 const TEXT_FIELDS: string[] = Object.keys(portalSchema.shape);
@@ -68,13 +78,15 @@ export function parsePortalForm(fd: FormData) {
   const cLabels = str("charge_label");
   const cNotes = str("charge_note");
   const cAmounts = str("charge_amount");
+  const cSuffixes = str("charge_suffix");
   const cStatuses = str("charge_status");
   const charges = cLabels
     .map((label, i) => ({
       label,
       note: cNotes[i],
       amount: cAmounts[i],
-      status: cStatuses[i],
+      suffix: cSuffixes[i],
+      status: cStatuses[i] || "NONE",
     }))
     .filter((c) => c.label.trim() || c.amount.trim())
     .slice(0, 12)
@@ -103,14 +115,30 @@ export function parsePortalForm(fd: FormData) {
   };
 }
 
-export function collectUploads(fd: FormData) {
-  const kinds = fd.getAll("doc_kind").map((v) => (typeof v === "string" ? v : "Other"));
+export type UploadRow = { kind: string; note?: string; file: File | null };
+
+/**
+ * One row per listed document. A row with a file is uploaded; a row with only a
+ * title becomes a "listed" document (shown disabled until a file is attached).
+ */
+export function collectUploads(fd: FormData): UploadRow[] {
+  const strs = (name: string) =>
+    fd.getAll(name).map((v) => (typeof v === "string" ? v.trim() : ""));
+  const kinds = strs("doc_kind");
+  const notes = strs("doc_note");
   const files = fd.getAll("doc_file");
-  const out: { kind: string; file: File }[] = [];
-  files.forEach((f, i) => {
-    if (f instanceof File && f.size > 0) {
-      out.push({ kind: (kinds[i] || "Other").slice(0, 60), file: f });
-    }
-  });
-  return out;
+  const rows: UploadRow[] = [];
+  const n = Math.max(kinds.length, files.length);
+  for (let i = 0; i < n; i++) {
+    const f = files[i];
+    const file = f instanceof File && f.size > 0 ? f : null;
+    const kind = kinds[i] ?? "";
+    if (!file && !kind) continue;
+    rows.push({
+      kind: (kind || file!.name.replace(/\.[^.]+$/, "") || "Document").slice(0, 80),
+      note: notes[i] ? notes[i].slice(0, 120) : undefined,
+      file,
+    });
+  }
+  return rows;
 }

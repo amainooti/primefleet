@@ -11,6 +11,10 @@ Public, link-shared client dashboards (the "MR1 Enterprises"-style portal).
 | `/portal/<slug>/files/<docId>` | anyone with the link | Document download/preview |
 | `/admin/portals` | admin | List and delete portals |
 
+- Dashboard sections: vehicle, financial breakdown (optional `/ mo` suffix and status badge per
+  line), onboarding checklist, documents (title + note; a document with no file is shown as
+  *pending* and can get its file later from manage mode), maintenance notes, and a
+  "Need Assistance?" support box (account manager name, email, phone).
 - `slug` is a random 128-bit token (not guessable). The manage key is a random 192-bit
   secret; only its SHA-256 hash is stored, so it **cannot be recovered** — it is shown
   once (it's the address of the page the creator lands on after creating).
@@ -21,7 +25,7 @@ Public, link-shared client dashboards (the "MR1 Enterprises"-style portal).
   (5 portals/hour/IP, 20 uploads/hour/IP). Portal pages send `noindex`.
 
 ## Deploy checklist
-1. `npx prisma migrate deploy` (adds Portal, PortalStep, PortalCharge, PortalDocument).
+1. `npx prisma migrate deploy` (adds Portal, PortalStep, PortalCharge, PortalDocument, then the support box / pending-document columns).
 2. Persist uploads: `docker-compose.yml` now mounts `./storage:/app/storage`.
    On the VPS: `mkdir -p storage && sudo chown -R 1001:1001 storage`.
 3. If nginx fronts the app, allow big bodies: `client_max_body_size 50m;`

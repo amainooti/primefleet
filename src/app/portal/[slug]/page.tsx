@@ -3,29 +3,45 @@ import { notFound } from "next/navigation";
 import {
   Check,
   CreditCard,
-  Download,
   ExternalLink,
   FileText,
   Hourglass,
   LayoutDashboard,
   LogOut,
   Circle,
+  ClipboardList,
+  Mail,
   Pencil,
+  Phone,
+  Receipt,
   Trash2,
   Truck,
   Wrench,
 } from "lucide-react";
 import { loadPortal, portalPaths } from "@/lib/portal/access";
 import { keyMatches } from "@/lib/portal/keys";
-import { formatBytes, formatMoney } from "@/lib/portal/constants";
-import { ACCEPT_ATTR } from "@/lib/portal/storage";
+import { ACCEPT_ATTR, formatBytes, formatMoney } from "@/lib/portal/constants";
 import { CopyLink } from "@/components/portal/CopyLink";
 import { UploadDocForm } from "@/components/portal/UploadDocForm";
-import { deleteDocument, setStepStatus, uploadDocument } from "../actions";
+import { AttachFileForm } from "@/components/portal/AttachFileForm";
+import { attachFile, deleteDocument, setStepStatus, uploadDocument } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-const NAVY = "#0f1729";
+const NAVY = "#0f1024";
+const GOLD = "#c9a227";
+
+function docIcon(kind: string) {
+  const k = kind.toLowerCase();
+  if (/invoice|receipt|deposit|payment/.test(k)) return Receipt;
+  if (/inspection|checklist|report/.test(k)) return ClipboardList;
+  return FileText;
+}
+
+function ext(fileName: string | null) {
+  const m = fileName?.match(/\.([a-z0-9]+)$/i);
+  return m ? m[1].toUpperCase() : "FILE";
+}
 
 function initials(name: string) {
   return name
@@ -65,9 +81,7 @@ export default async function PortalPage({
   const bannerText =
     portal.alertText ?? (pendingStep ? `Action Required: ${pendingStep.label}` : null);
 
-  const numeric = portal.charges.map((c) => Number(c.amount.replace(/[$,\s]/g, "")));
-  const showTotal = portal.charges.length > 1 && numeric.every((n) => !Number.isNaN(n));
-  const total = numeric.reduce((a, b) => a + b, 0);
+  const hasSupport = !!(portal.supportName || portal.supportEmail || portal.supportPhone);
 
   const vehicleFacts = [
     ["VIN", portal.vin, true],
@@ -86,9 +100,9 @@ export default async function PortalPage({
       : []),
   ];
 
-  const card = "rounded-xl border border-[#e6e8f0] bg-white shadow-[0_1px_2px_rgba(15,23,41,0.04)]";
+  const card = "overflow-hidden rounded-lg border border-[#e4e8ef] bg-white shadow-[0_1px_2px_rgba(15,23,41,0.04)]";
   const cardHead =
-    "border-b border-[#eceef3] px-6 py-5 text-[15px] font-bold uppercase tracking-[0.14em] text-[#0f1729]";
+    "border-b border-[#e4e8ef] bg-[#fafbfc] px-6 py-5 text-[15px] font-bold uppercase tracking-[0.14em] text-[#12132a]";
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f4f5fa] lg:flex-row">
@@ -98,10 +112,13 @@ export default async function PortalPage({
         style={{ background: NAVY }}
       >
         <div className="border-b border-white/10 px-6 py-6 text-center">
-          <p className="text-xl font-extrabold italic tracking-tight text-white">
-            PRIME<span className="text-[#D4AF37]">FLEET</span>
-          </p>
-          <p className="mt-3 text-sm font-bold uppercase tracking-[0.3em] text-[#D4AF37]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/4954342108944862507_121-removebg-preview.png"
+            alt="Prime Fleet"
+            className="mx-auto mb-3 h-10 w-auto"
+          />
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-[#c9a227]">
             Client Portal
           </p>
         </div>
@@ -112,11 +129,11 @@ export default async function PortalPage({
               href={n.href}
               className={`flex shrink-0 items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${
                 i === 0
-                  ? "bg-white/10 text-white lg:border-l-4 lg:border-[#D4AF37]"
+                  ? "bg-white/10 text-white lg:border-l-4 lg:border-[#c9a227]"
                   : "text-white/70 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <n.icon size={18} className={i === 0 ? "text-[#D4AF37]" : ""} />
+              <n.icon size={18} className={i === 0 ? "text-[#c9a227]" : ""} />
               {n.label}
             </a>
           ))}
@@ -137,7 +154,7 @@ export default async function PortalPage({
       <main id="top" className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:px-10">
         {/* Manage bar */}
         {canManage && (
-          <div className="mb-6 rounded-xl border border-[#D4AF37]/50 bg-[#fffaf0] p-4">
+          <div className="mb-6 rounded-xl border border-[#c9a227]/50 bg-[#fffaf0] p-4">
             <p className="text-sm font-bold text-[#141414]">
               {created ? "Your portal is ready 🎉" : "Manage mode"}
             </p>
@@ -151,7 +168,7 @@ export default async function PortalPage({
               <CopyLink path={paths.manage} label="Copy manage link (keep private)" />
               <Link
                 href={`/portal/${slug}/edit?key=${encodeURIComponent(mk)}`}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#141414] px-3 py-1.5 text-xs font-semibold text-[#141414] hover:bg-[#141414] hover:text-[#D4AF37]"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#141414] px-3 py-1.5 text-xs font-semibold text-[#141414] hover:bg-[#141414] hover:text-[#c9a227]"
               >
                 <Pencil size={14} /> Edit details
               </Link>
@@ -169,10 +186,10 @@ export default async function PortalPage({
         {/* Header */}
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#0f1729]">
+            <h1 className="text-3xl font-bold text-[#12132a]">
               Welcome back, {portal.contactName.split(/\s+/)[0]}
             </h1>
-            <p className="mt-1 text-[#5b6478]">
+            <p className="mt-1 text-[#5a6270]">
               Here is the current status of your {portal.companyName} fleet allocation.
             </p>
           </div>
@@ -184,15 +201,15 @@ export default async function PortalPage({
               {initials(portal.contactName)}
             </span>
             <span className="leading-tight">
-              <span className="block text-sm font-bold text-[#0f1729]">{portal.contactName}</span>
-              <span className="block text-sm text-[#5b6478]">{portal.companyName}</span>
+              <span className="block text-sm font-bold text-[#12132a]">{portal.contactName}</span>
+              <span className="block text-sm text-[#5a6270]">{portal.companyName}</span>
             </span>
           </div>
         </header>
 
         {/* Alert */}
         {bannerText && (
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-[#e0a526] bg-[#fdf6e3] px-5 py-4">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-[#c9a227] bg-[#fff8e6] px-5 py-4">
             <p className="text-[15px] font-semibold text-[#141414]">
               {bannerText.startsWith("Action Required") ? bannerText : `Action Required: ${bannerText}`}
             </p>
@@ -208,8 +225,8 @@ export default async function PortalPage({
           <div className="space-y-6">
             {/* Vehicle */}
             <section id="vehicle" className={`${card} scroll-mt-6`}>
-              <div className="flex items-center justify-between border-b border-[#eceef3] px-6 py-5">
-                <h2 className="text-[15px] font-bold uppercase tracking-[0.14em] text-[#0f1729]">
+              <div className="flex items-center justify-between border-b border-[#e4e8ef] bg-[#fafbfc] px-6 py-5">
+                <h2 className="text-[15px] font-bold uppercase tracking-[0.14em] text-[#12132a]">
                   Assigned Vehicle Allocation
                 </h2>
                 <span className="rounded bg-green-100 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-green-700">
@@ -217,8 +234,8 @@ export default async function PortalPage({
                 </span>
               </div>
               <div className="p-6">
-                <h3 className="text-2xl font-bold text-[#0f1729]">{portal.vehicleTitle}</h3>
-                <p className="mt-1 text-[#5b6478]">
+                <h3 className="text-2xl font-bold text-[#12132a]">{portal.vehicleTitle}</h3>
+                <p className="mt-1 text-[#5a6270]">
                   {[portal.stockNumber && `Stock #${portal.stockNumber}`, portal.vehicleColor]
                     .filter(Boolean)
                     .join("  |  ")}
@@ -227,9 +244,9 @@ export default async function PortalPage({
                   {vehicleFacts
                     .filter(([, v]) => v)
                     .map(([k, v, mono]) => (
-                      <div key={k} className="border-b border-dashed border-[#e6e8f0] pb-3">
-                        <dt className="text-xs font-bold uppercase tracking-wider text-[#64708a]">{k}</dt>
-                        <dd className={`mt-1 font-semibold text-[#0f1729] ${mono ? "break-all font-mono" : ""}`}>
+                      <div key={k} className="border-b border-dashed border-[#e4e8ef] pb-3">
+                        <dt className="text-xs font-bold uppercase tracking-wider text-[#5a6270]">{k}</dt>
+                        <dd className={`mt-1 font-semibold text-[#12132a] ${mono ? "break-all font-mono" : ""}`}>
                           {v}
                         </dd>
                       </div>
@@ -243,39 +260,36 @@ export default async function PortalPage({
               <h2 className={cardHead}>Financial Breakdown</h2>
               <div className="px-6 py-4">
                 {portal.charges.length === 0 && (
-                  <p className="py-4 text-sm text-[#5b6478]">No charges listed yet.</p>
+                  <p className="py-4 text-sm text-[#5a6270]">No charges listed yet.</p>
                 )}
-                <ul className="divide-y divide-[#eceef3]">
+                <ul className="divide-y divide-[#e4e8ef]">
                   {portal.charges.map((c) => (
                     <li key={c.id} className="flex items-start justify-between gap-4 py-4">
                       <div>
-                        <p className="font-bold text-[#0f1729]">{c.label}</p>
-                        {c.note && <p className="text-sm text-[#5b6478]">{c.note}</p>}
+                        <p className="font-bold text-[#12132a]">{c.label}</p>
+                        {c.note && <p className="text-sm text-[#5a6270]">{c.note}</p>}
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-[#0f1729]">{formatMoney(c.amount)}</p>
-                        <span className={`mt-1 inline-block rounded px-2.5 py-0.5 text-xs font-bold uppercase ${CHARGE_CHIP[c.status]}`}>
-                          {c.status}
-                        </span>
+                        <p className="text-lg font-bold text-[#12132a]">
+                          {formatMoney(c.amount)}
+                          {c.suffix && <span className="ml-1 text-sm font-bold">{c.suffix}</span>}
+                        </p>
+                        {c.status && (
+                          <span className={`mt-1 inline-block rounded px-2.5 py-0.5 text-xs font-bold uppercase ${CHARGE_CHIP[c.status]}`}>
+                            {c.status}
+                          </span>
+                        )}
                       </div>
                     </li>
                   ))}
                 </ul>
-                {showTotal && (
-                  <div className="flex items-center justify-between border-t-2 border-[#0f1729] pt-4">
-                    <p className="font-bold uppercase tracking-wide text-[#0f1729]">Total</p>
-                    <p className="text-lg font-bold text-[#0f1729]">
-                      {total.toLocaleString("en-US", { style: "currency", currency: "USD" })}
-                    </p>
-                  </div>
-                )}
               </div>
             </section>
 
             {portal.maintenanceNotes && (
               <section id="maintenance" className={`${card} scroll-mt-6`}>
                 <h2 className={cardHead}>Maintenance</h2>
-                <p className="whitespace-pre-wrap px-6 py-5 text-[#2b3347]">{portal.maintenanceNotes}</p>
+                <p className="whitespace-pre-wrap px-6 py-5 text-[#12132a]">{portal.maintenanceNotes}</p>
               </section>
             )}
           </div>
@@ -285,11 +299,11 @@ export default async function PortalPage({
             <section className={card}>
               <h2 className={cardHead}>Onboarding Progress</h2>
               <div className="px-6 py-6">
-                <div className="flex items-center justify-between text-sm font-bold text-[#0f1729]">
+                <div className="flex items-center justify-between text-sm font-bold text-[#12132a]">
                   <span>Profile Completion</span>
                   <span>{pct}%</span>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6e8f0]">
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e4e8ef]">
                   <div className="h-full rounded-full bg-[#15803d]" style={{ width: `${pct}%` }} />
                 </div>
                 <ul className="mt-6 space-y-3.5">
@@ -301,7 +315,7 @@ export default async function PortalPage({
                             ? "font-bold text-[#15803d]"
                             : s.status === "PENDING"
                               ? "font-bold text-[#d97706]"
-                              : "text-[#64708a]"
+                              : "text-[#5a6270]"
                         }`}
                       >
                         {s.status === "DONE" ? (
@@ -315,7 +329,7 @@ export default async function PortalPage({
                       </span>
                       {canManage && (
                         <form action={setStepStatus.bind(null, slug, mk, s.id, s.status === "DONE" ? "TODO" : "DONE")}>
-                          <button className="text-xs font-semibold text-[#64708a] underline hover:text-[#0f1729]">
+                          <button className="text-xs font-semibold text-[#5a6270] underline hover:text-[#12132a]">
                             {s.status === "DONE" ? "Reopen" : "Mark done"}
                           </button>
                         </form>
@@ -323,7 +337,7 @@ export default async function PortalPage({
                     </li>
                   ))}
                   {portal.steps.length === 0 && (
-                    <li className="text-sm text-[#5b6478]">No steps yet.</li>
+                    <li className="text-sm text-[#5a6270]">No steps yet.</li>
                   )}
                 </ul>
               </div>
@@ -334,45 +348,66 @@ export default async function PortalPage({
               <h2 className={cardHead}>My Documents</h2>
               <div className="px-6 py-5">
                 {portal.documents.length === 0 ? (
-                  <p className="text-sm text-[#5b6478]">No documents uploaded yet.</p>
+                  <p className="text-sm text-[#5a6270]">No documents uploaded yet.</p>
                 ) : (
-                  <ul className="divide-y divide-[#eceef3]">
-                    {portal.documents.map((d) => (
-                      <li key={d.id} className="flex items-center gap-3 py-3">
-                        <FileText size={20} className="shrink-0 text-[#64708a]" />
-                        <div className="min-w-0 flex-1">
-                          <a
-                            href={`/portal/${slug}/files/${d.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block truncate text-sm font-bold text-[#0f1729] hover:underline"
-                          >
-                            {d.kind}
-                          </a>
-                          <p className="truncate text-xs text-[#64708a]">
-                            {d.fileName} · {formatBytes(d.size)} ·{" "}
-                            {d.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}
-                          </p>
-                        </div>
-                        <a
-                          href={`/portal/${slug}/files/${d.id}?download=1`}
-                          className="rounded p-1.5 text-[#64708a] hover:bg-[#f0f2f7] hover:text-[#0f1729]"
-                          aria-label={`Download ${d.fileName}`}
-                        >
-                          <Download size={16} />
-                        </a>
-                        {canManage && (
-                          <form action={deleteDocument.bind(null, slug, mk, d.id)}>
-                            <button
-                              className="rounded p-1.5 text-[#64708a] hover:bg-red-50 hover:text-red-600"
-                              aria-label={`Delete ${d.fileName}`}
+                  <ul className="divide-y divide-[#e4e8ef]">
+                    {portal.documents.map((d) => {
+                      const Icon = docIcon(d.kind);
+                      const hasFile = !!d.storedName;
+                      const sub =
+                        d.note ??
+                        (hasFile
+                          ? `${d.fileName} · ${formatBytes(d.size ?? 0)} · ${d.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}`
+                          : "Pending");
+                      return (
+                        <li key={d.id} className="flex items-center gap-3 py-3">
+                          <Icon size={20} className="shrink-0 text-[#2a2d5c]" />
+                          <div className="min-w-0 flex-1">
+                            {hasFile ? (
+                              <a
+                                href={`/portal/${slug}/files/${d.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block truncate text-sm font-bold text-[#12132a] hover:underline"
+                              >
+                                {d.kind}
+                              </a>
+                            ) : (
+                              <p className="truncate text-sm font-bold text-[#12132a]">{d.kind}</p>
+                            )}
+                            <p className="truncate text-xs text-[#5a6270]">{sub}</p>
+                          </div>
+                          {hasFile ? (
+                            <a
+                              href={`/portal/${slug}/files/${d.id}?download=1`}
+                              className="rounded border border-[#e4e8ef] bg-[#f4f6fa] px-3 py-1.5 text-xs font-bold text-[#12132a] hover:bg-[#0f1024] hover:text-white"
+                              aria-label={`Download ${d.fileName}`}
                             >
-                              <Trash2 size={16} />
-                            </button>
-                          </form>
-                        )}
-                      </li>
-                    ))}
+                              {ext(d.fileName)}
+                            </a>
+                          ) : canManage ? (
+                            <AttachFileForm
+                              action={attachFile.bind(null, slug, mk, d.id)}
+                              acceptAttr={ACCEPT_ATTR}
+                            />
+                          ) : (
+                            <span className="rounded border border-[#e4e8ef] bg-[#f4f6fa] px-3 py-1.5 text-xs font-bold text-[#12132a] opacity-50">
+                              PDF
+                            </span>
+                          )}
+                          {canManage && (
+                            <form action={deleteDocument.bind(null, slug, mk, d.id)}>
+                              <button
+                                className="rounded p-1.5 text-[#5a6270] hover:bg-red-50 hover:text-red-600"
+                                aria-label={`Delete ${d.kind}`}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </form>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
                 {canManage && (
@@ -385,6 +420,36 @@ export default async function PortalPage({
                 )}
               </div>
             </section>
+
+            {hasSupport && (
+              <section className="rounded-lg p-6 text-center text-white" style={{ background: NAVY }}>
+                <h2 className="text-lg font-bold" style={{ color: GOLD }}>Need Assistance?</h2>
+                <p className="mb-5 mt-2 text-[13px] text-white/80">
+                  {portal.supportName
+                    ? `Your dedicated account manager, ${portal.supportName}, is available to help.`
+                    : "Our team is available to help."}
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {portal.supportEmail && (
+                    <a
+                      href={`mailto:${portal.supportEmail}`}
+                      className="inline-flex items-center gap-2 rounded px-5 py-2.5 text-sm font-bold text-[#0f1024]"
+                      style={{ background: GOLD }}
+                    >
+                      <Mail size={15} /> Contact Support
+                    </a>
+                  )}
+                  {portal.supportPhone && (
+                    <a
+                      href={`tel:${portal.supportPhone.replace(/[^\d+]/g, "")}`}
+                      className="inline-flex items-center gap-2 rounded border border-white/30 px-5 py-2.5 text-sm font-bold text-white hover:bg-white/10"
+                    >
+                      <Phone size={15} /> {portal.supportPhone}
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         </div>
       </main>

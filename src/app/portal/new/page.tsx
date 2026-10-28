@@ -1,7 +1,7 @@
 import { PortalForm } from "@/components/portal/PortalForm";
 import { EMPTY_PORTAL_VALUES } from "@/components/portal/types";
 import { createPortal } from "../actions";
-import { ACCEPT_ATTR, MAX_FILES_PER_REQUEST } from "@/lib/portal/storage";
+import { ACCEPT_ATTR, MAX_DOC_ROWS_PER_REQUEST, MAX_FILES_PER_REQUEST } from "@/lib/portal/constants";
 
 export default function NewPortalPage() {
   return (
@@ -17,7 +17,8 @@ export default function NewPortalPage() {
           action={createPortal}
           initial={EMPTY_PORTAL_VALUES}
           submitLabel="Create portal"
-          maxNewFiles={MAX_FILES_PER_REQUEST}
+          maxNewFiles={MAX_DOC_ROWS_PER_REQUEST}
+          maxFiles={MAX_FILES_PER_REQUEST}
           acceptAttr={ACCEPT_ATTR}
         />
       </div>

@@ -7,6 +7,9 @@ export type PortalFormValues = {
   alertText: string;
   alertActionLabel: string;
   maintenanceNotes: string;
+  supportName: string;
+  supportEmail: string;
+  supportPhone: string;
   vehicleTitle: string;
   vehicleStatus: string;
   stockNumber: string;
@@ -16,7 +19,7 @@ export type PortalFormValues = {
   transmission: string;
   mileage: string;
   steps: { label: string; status: string }[];
-  charges: { label: string; note: string; amount: string; status: string }[];
+  charges: { label: string; note: string; amount: string; suffix: string; status: string }[];
 };
 
 export const EMPTY_PORTAL_VALUES: PortalFormValues = {
@@ -28,6 +31,9 @@ export const EMPTY_PORTAL_VALUES: PortalFormValues = {
   alertText: "",
   alertActionLabel: "Upload COI",
   maintenanceNotes: "",
+  supportName: "",
+  supportEmail: "rentalprimefleet@gmail.com",
+  supportPhone: "",
   vehicleTitle: "",
   vehicleStatus: "Locked & Reserved",
   stockNumber: "",
@@ -44,6 +50,6 @@ export const EMPTY_PORTAL_VALUES: PortalFormValues = {
     { label: "Final Yard Pickup", status: "TODO" },
   ],
   charges: [
-    { label: "Initial Holding Deposit", note: "Paid via PNC RFP", amount: "1500", status: "PROCESSING" },
+    { label: "Initial Holding Deposit", note: "Paid via PNC RFP", amount: "1500", suffix: "", status: "PROCESSING" },
   ],
 };

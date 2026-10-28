@@ -3,14 +3,15 @@
 import { useActionState, startTransition, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { PortalFormState } from "@/app/portal/actions";
-import { DOCUMENT_KINDS } from "@/lib/portal/constants";
+import { DOCUMENT_KINDS, MAX_FILE_SIZE } from "@/lib/portal/constants";
 import type { PortalFormValues } from "./types";
 
 type Props = {
   action: (prev: PortalFormState, fd: FormData) => Promise<PortalFormState>;
   initial: PortalFormValues;
   submitLabel: string;
-  maxNewFiles: number;
+  maxNewFiles: number; // max document rows
+  maxFiles: number; // max actual files per submit
   acceptAttr: string;
 };
 
@@ -79,7 +80,7 @@ function Section({
 let rowId = 0;
 const nextId = () => ++rowId;
 
-export function PortalForm({ action, initial, submitLabel, maxNewFiles, acceptAttr }: Props) {
+export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles, acceptAttr }: Props) {
   const [state, formAction, pending] = useActionState(action, {} as PortalFormState);
   const fe = state.fieldErrors ?? {};
 
@@ -165,13 +166,15 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, acceptAt
         </div>
       </Section>
 
-      <Section title="Financial breakdown">
+      <Section title="Financial breakdown" description="Add a suffix like “/ mo” for recurring amounts. Pick “No badge” for plain line items.">
         {charges.map((c) => (
-          <div key={c.id} className="grid gap-2 sm:grid-cols-[1.4fr_1.4fr_110px_130px_auto]">
-            <input name="charge_label" defaultValue={c.label} placeholder="Initial Holding Deposit" className={input} aria-label="Charge label" />
-            <input name="charge_note" defaultValue={c.note} placeholder="Paid via PNC RFP" className={input} aria-label="Charge note" />
-            <input name="charge_amount" defaultValue={c.amount} placeholder="1500" inputMode="decimal" className={input} aria-label="Amount" />
-            <select name="charge_status" defaultValue={c.status} className={input} aria-label="Charge status">
+          <div key={c.id} className="grid gap-2 rounded-lg border border-[#eee] p-3 sm:grid-cols-[1.3fr_1.3fr_100px_90px_130px_auto] sm:border-0 sm:p-0">
+            <input name="charge_label" defaultValue={c.label} placeholder="Base Monthly Lease" className={input} aria-label="Charge label" />
+            <input name="charge_note" defaultValue={c.note} placeholder="Includes 12,000 mi" className={input} aria-label="Charge note" />
+            <input name="charge_amount" defaultValue={c.amount} placeholder="3650" inputMode="decimal" className={input} aria-label="Amount" />
+            <input name="charge_suffix" defaultValue={c.suffix} placeholder="/ mo" className={input} aria-label="Amount suffix, e.g. / mo" />
+            <select name="charge_status" defaultValue={c.status || "NONE"} className={input} aria-label="Charge status">
+              <option value="NONE">No badge</option>
               <option value="PAID">Paid</option>
               <option value="PROCESSING">Processing</option>
               <option value="DUE">Due</option>
@@ -183,31 +186,41 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, acceptAt
         ))}
         {fe.charges && <p className="text-xs text-red-600">{fe.charges}</p>}
         {charges.length < 12 && (
-          <button type="button" onClick={() => setCharges((x) => [...x, { id: nextId(), label: "", note: "", amount: "", status: "DUE" }])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] hover:text-[#b8941f]">
+          <button type="button" onClick={() => setCharges((x) => [...x, { id: nextId(), label: "", note: "", amount: "", suffix: "", status: "NONE" }])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] hover:text-[#b8941f]">
             <Plus size={15} /> Add charge
           </button>
         )}
       </Section>
 
-      <Section title="Documents" description={`Attach files now (PDF, JPG, PNG, WEBP or DOCX · 10MB each · up to ${maxNewFiles} at a time). You can add more later from the dashboard.`}>
+      <Section title="Documents" description={`List the documents for this portal. Attach a file now (PDF, JPG, PNG, WEBP or DOCX · ${MAX_FILE_SIZE / 1024 / 1024}MB each · up to ${maxFiles} files at a time) or leave the file empty to list it as pending and upload it later from the dashboard.`}>
+        <datalist id="doc-kinds">
+          {DOCUMENT_KINDS.map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
         {docs.map((d) => (
-          <div key={d.id} className="flex flex-col gap-2 sm:flex-row">
-            <select name="doc_kind" className={`${input} sm:w-64`} aria-label="Document type">
-              {DOCUMENT_KINDS.map((k) => (
-                <option key={k}>{k}</option>
-              ))}
-            </select>
-            <input type="file" name="doc_file" accept={acceptAttr} className={`${input} file:mr-3 file:rounded file:border-0 file:bg-[#141414] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#D4AF37]`} aria-label="File" />
-            <button type="button" onClick={() => setDocs((x) => x.filter((r) => r.id !== d.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove file">
+          <div key={d.id} className="grid gap-2 rounded-lg border border-[#eee] p-3 sm:grid-cols-[1.2fr_1fr_1.3fr_auto]">
+            <input name="doc_kind" list="doc-kinds" placeholder="Document name" className={input} aria-label="Document name" />
+            <input name="doc_note" placeholder="Note, e.g. Signed Oct 20" className={input} aria-label="Document note" />
+            <input type="file" name="doc_file" accept={acceptAttr} className={`${input} file:mr-3 file:rounded file:border-0 file:bg-[#141414] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#D4AF37]`} aria-label="File (optional)" />
+            <button type="button" onClick={() => setDocs((x) => x.filter((r) => r.id !== d.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove document">
               <Trash2 size={16} />
             </button>
           </div>
         ))}
         {docs.length < maxNewFiles && (
           <button type="button" onClick={() => setDocs((x) => [...x, { id: nextId() }])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] hover:text-[#b8941f]">
-            <Plus size={15} /> Attach a file
+            <Plus size={15} /> Add a document
           </button>
         )}
+      </Section>
+
+      <Section title="Support box" description="Shown as “Need Assistance?” on the dashboard. Leave all three blank to hide it.">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field name="supportName" title="Account manager" defaultValue={initial.supportName} error={fe.supportName} placeholder="Anna Liu" />
+          <Field name="supportEmail" title="Support email" type="email" defaultValue={initial.supportEmail} error={fe.supportEmail} />
+          <Field name="supportPhone" title="Support phone" defaultValue={initial.supportPhone} error={fe.supportPhone} />
+        </div>
       </Section>
 
       <Section title="Extra details (optional)">

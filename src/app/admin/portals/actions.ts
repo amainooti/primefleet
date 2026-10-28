@@ -17,6 +17,8 @@ export async function deletePortal(id: string) {
   if (!portal) return;
 
   await prisma.portal.delete({ where: { id } }); // cascades steps/charges/documents
-  await Promise.all(portal.documents.map((d) => deletePortalFile(d.storedName)));
+  await Promise.all(
+    portal.documents.filter((d) => d.storedName).map((d) => deletePortalFile(d.storedName!))
+  );
   revalidatePath("/admin/portals");
 }

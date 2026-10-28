@@ -5,46 +5,79 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
 import { generateManageKey, generateSlug, hashKey } from "@/lib/portal/keys";
 import { loadPortalForManage, portalPaths } from "@/lib/portal/access";
-import { collectUploads, parsePortalForm } from "@/lib/portal/validation";
+import { collectUploads, parsePortalForm, type UploadRow } from "@/lib/portal/validation";
 import { rateLimited } from "@/lib/portal/ratelimit";
 import {
+  MAX_DOC_ROWS_PER_REQUEST,
   MAX_FILES_PER_PORTAL,
   MAX_FILES_PER_REQUEST,
-  PortalStorageError,
-  deletePortalFile,
-  savePortalFile,
-} from "@/lib/portal/storage";
-import { STEP_STATUSES } from "@/lib/portal/constants";
+  STEP_STATUSES,
+} from "@/lib/portal/constants";
+import { PortalStorageError, deletePortalFile, savePortalFile } from "@/lib/portal/storage";
 
 export type PortalFormState = {
   error?: string;
   fieldErrors?: Record<string, string>;
 };
 
-type SavedFile = Awaited<ReturnType<typeof savePortalFile>> & { kind: string };
+type DocData = {
+  kind: string;
+  note: string | null;
+  fileName: string | null;
+  storedName: string | null;
+  mimeType: string | null;
+  size: number | null;
+};
 
-async function saveUploads(
-  uploads: { kind: string; file: File }[]
-): Promise<{ saved: SavedFile[]; error?: string }> {
-  if (uploads.length > MAX_FILES_PER_REQUEST) {
+/** Saves the files of every row and returns DB-ready document data (listed rows have null file fields). */
+async function saveRows(rows: UploadRow[]): Promise<{ docs: DocData[]; error?: string }> {
+  if (rows.length > MAX_DOC_ROWS_PER_REQUEST) {
+    return { docs: [], error: `You can add up to ${MAX_DOC_ROWS_PER_REQUEST} documents at a time.` };
+  }
+  if (rows.filter((r) => r.file).length > MAX_FILES_PER_REQUEST) {
     return {
-      saved: [],
+      docs: [],
       error: `You can attach up to ${MAX_FILES_PER_REQUEST} files at a time. Add more later from the dashboard.`,
     };
   }
-  const saved: SavedFile[] = [];
+  const docs: DocData[] = [];
   try {
-    for (const u of uploads) {
-      saved.push({ ...(await savePortalFile(u.file)), kind: u.kind });
+    for (const r of rows) {
+      if (r.file) {
+        const s = await savePortalFile(r.file);
+        docs.push({
+          kind: r.kind,
+          note: r.note ?? null,
+          fileName: s.fileName,
+          storedName: s.storedName,
+          mimeType: s.mimeType,
+          size: s.size,
+        });
+      } else {
+        docs.push({
+          kind: r.kind,
+          note: r.note ?? null,
+          fileName: null,
+          storedName: null,
+          mimeType: null,
+          size: null,
+        });
+      }
     }
-    return { saved };
+    return { docs };
   } catch (e) {
-    await Promise.all(saved.map((s) => deletePortalFile(s.storedName)));
+    await cleanup(docs);
     return {
-      saved: [],
+      docs: [],
       error: e instanceof PortalStorageError ? e.message : "Could not save the uploaded files.",
     };
   }
+}
+
+async function cleanup(docs: DocData[]) {
+  await Promise.all(
+    docs.filter((d) => d.storedName).map((d) => deletePortalFile(d.storedName!))
+  );
 }
 
 /* ------------------------------ create ------------------------------ */
@@ -65,7 +98,7 @@ export async function createPortal(
     return { error: "Please fix the highlighted fields.", fieldErrors: parsed.fieldErrors };
   }
 
-  const { saved, error } = await saveUploads(collectUploads(formData));
+  const { docs, error } = await saveRows(collectUploads(formData));
   if (error) return { error };
 
   const slug = generateSlug();
@@ -77,25 +110,13 @@ export async function createPortal(
         slug,
         manageKeyHash: hashKey(key),
         ...parsed.data,
-        steps: {
-          create: parsed.steps.map((s, i) => ({ ...s, sortOrder: i })),
-        },
-        charges: {
-          create: parsed.charges.map((c, i) => ({ ...c, sortOrder: i })),
-        },
-        documents: {
-          create: saved.map((f) => ({
-            kind: f.kind,
-            fileName: f.fileName,
-            storedName: f.storedName,
-            mimeType: f.mimeType,
-            size: f.size,
-          })),
-        },
+        steps: { create: parsed.steps.map((s, i) => ({ ...s, sortOrder: i })) },
+        charges: { create: parsed.charges.map((c, i) => ({ ...c, sortOrder: i })) },
+        documents: { create: docs },
       },
     });
   } catch {
-    await Promise.all(saved.map((s) => deletePortalFile(s.storedName)));
+    await cleanup(docs);
     return { error: "Could not create the portal. Please try again." };
   }
 
@@ -122,11 +143,11 @@ export async function updatePortal(
     return { error: "Please fix the highlighted fields.", fieldErrors: parsed.fieldErrors };
   }
 
-  const uploads = collectUploads(formData);
-  if (portal.documents.length + uploads.length > MAX_FILES_PER_PORTAL) {
+  const rows = collectUploads(formData);
+  if (portal.documents.length + rows.length > MAX_FILES_PER_PORTAL) {
     return { error: `A portal can hold up to ${MAX_FILES_PER_PORTAL} documents.` };
   }
-  const { saved, error } = await saveUploads(uploads);
+  const { docs, error } = await saveRows(rows);
   if (error) return { error };
 
   try {
@@ -139,20 +160,12 @@ export async function updatePortal(
           ...parsed.data,
           steps: { create: parsed.steps.map((s, i) => ({ ...s, sortOrder: i })) },
           charges: { create: parsed.charges.map((c, i) => ({ ...c, sortOrder: i })) },
-          documents: {
-            create: saved.map((f) => ({
-              kind: f.kind,
-              fileName: f.fileName,
-              storedName: f.storedName,
-              mimeType: f.mimeType,
-              size: f.size,
-            })),
-          },
+          documents: { create: docs },
         },
       }),
     ]);
   } catch {
-    await Promise.all(saved.map((s) => deletePortalFile(s.storedName)));
+    await cleanup(docs);
     return { error: "Could not save your changes. Please try again." };
   }
 
@@ -174,30 +187,72 @@ export async function uploadDocument(
     return { error: "Too many uploads. Please try again later." };
   }
 
-  const uploads = collectUploads(formData);
-  if (uploads.length === 0) return { error: "Choose a file to upload." };
-  if (portal.documents.length + uploads.length > MAX_FILES_PER_PORTAL) {
+  const rows = collectUploads(formData).slice(0, 1);
+  if (rows.length === 0) return { error: "Enter a document name or choose a file." };
+  if (portal.documents.length + rows.length > MAX_FILES_PER_PORTAL) {
     return { error: `A portal can hold up to ${MAX_FILES_PER_PORTAL} documents.` };
   }
 
-  const { saved, error } = await saveUploads(uploads);
+  const { docs, error } = await saveRows(rows);
   if (error) return { error };
 
   try {
     await prisma.portalDocument.createMany({
-      data: saved.map((f) => ({
-        portalId: portal.id,
-        kind: f.kind,
-        fileName: f.fileName,
-        storedName: f.storedName,
-        mimeType: f.mimeType,
-        size: f.size,
-      })),
+      data: docs.map((d) => ({ ...d, portalId: portal.id })),
     });
   } catch {
-    await Promise.all(saved.map((s) => deletePortalFile(s.storedName)));
+    await cleanup(docs);
     return { error: "Could not save the upload. Please try again." };
   }
+
+  revalidatePath(`/portal/${slug}`);
+  return {};
+}
+
+/** Attach (or replace) the file of an existing listed document. */
+export async function attachFile(
+  slug: string,
+  key: string,
+  docId: string,
+  _prev: PortalFormState,
+  formData: FormData
+): Promise<PortalFormState> {
+  const portal = await loadPortalForManage(slug, key);
+  if (!portal) return { error: "This manage link is no longer valid." };
+  const doc = portal.documents.find((d) => d.id === docId);
+  if (!doc) return { error: "Document not found." };
+
+  if (await rateLimited("portal-upload", 20, 60 * 60 * 1000)) {
+    return { error: "Too many uploads. Please try again later." };
+  }
+
+  const file = formData.get("doc_file");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a file." };
+
+  let saved;
+  try {
+    saved = await savePortalFile(file);
+  } catch (e) {
+    return {
+      error: e instanceof PortalStorageError ? e.message : "Could not save the uploaded file.",
+    };
+  }
+
+  try {
+    await prisma.portalDocument.update({
+      where: { id: doc.id },
+      data: {
+        fileName: saved.fileName,
+        storedName: saved.storedName,
+        mimeType: saved.mimeType,
+        size: saved.size,
+      },
+    });
+  } catch {
+    await deletePortalFile(saved.storedName);
+    return { error: "Could not save the upload. Please try again." };
+  }
+  if (doc.storedName) await deletePortalFile(doc.storedName);
 
   revalidatePath(`/portal/${slug}`);
   return {};
@@ -209,7 +264,7 @@ export async function deleteDocument(slug: string, key: string, docId: string) {
   const doc = portal.documents.find((d) => d.id === docId);
   if (!doc) return;
   await prisma.portalDocument.delete({ where: { id: doc.id } });
-  await deletePortalFile(doc.storedName);
+  if (doc.storedName) await deletePortalFile(doc.storedName);
   revalidatePath(`/portal/${slug}`);
 }
 

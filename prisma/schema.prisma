@@ -144,6 +144,11 @@ model Portal {
   alertActionLabel String?
   maintenanceNotes String?
 
+  // Support box ("Need Assistance?")
+  supportName  String?
+  supportEmail String?
+  supportPhone String?
+
   // Vehicle
   vehicleTitle  String
   vehicleStatus String  @default("Locked & Reserved")
@@ -180,7 +185,8 @@ model PortalCharge {
   label     String
   note      String?
   amount    String
-  status    PortalChargeStatus @default(PROCESSING)
+  suffix    String?            // e.g. "/ mo"
+  status    PortalChargeStatus?  // null = no badge
   sortOrder Int                @default(0)
 
   @@index([portalId])
@@ -191,10 +197,12 @@ model PortalDocument {
   portalId   String
   portal     Portal   @relation(fields: [portalId], references: [id], onDelete: Cascade)
   kind       String
-  fileName   String
-  storedName String
-  mimeType   String
-  size       Int
+  note       String?   // subtitle, e.g. "Signed Oct 20, 2026" / "Pending Pickup"
+  // File fields are null for a listed-but-not-yet-uploaded document.
+  fileName   String?
+  storedName String?
+  mimeType   String?
+  size       Int?
   createdAt  DateTime @default(now())
 
   @@index([portalId])
