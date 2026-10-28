@@ -72,7 +72,7 @@ function Section({
     <section className="rounded-xl border border-[#e4e4e2] bg-white p-6 shadow-sm">
       <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-[#141414]">{title}</h2>
       {description && <p className="mt-1 text-sm text-[#6B6E76]">{description}</p>}
-      <div className="mt-5 space-y-4">{children}</div>
+      <div className="mt-5 min-w-0 space-y-4">{children}</div>
     </section>
   );
 }
@@ -84,6 +84,13 @@ const STEP_STATUS_LABEL: Record<string, string> = {
   DONE: "Done",
   PENDING: "Pending",
   TODO: "Not started",
+};
+const STEP_SELECT =
+  "w-auto min-w-0 shrink-0 cursor-pointer rounded-md border px-2.5 py-2 text-sm font-semibold outline-none transition focus:ring-2 focus:ring-[#D4AF37]/30 sm:w-32";
+const STEP_TINT: Record<string, string> = {
+  DONE: "border-green-200 bg-green-50 text-green-700",
+  PENDING: "border-amber-200 bg-amber-50 text-amber-700",
+  TODO: "border-[#d9dce3] bg-white text-[#6B6E76]",
 };
 const norm = (v: string) => v.trim().toLowerCase();
 
@@ -228,21 +235,24 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
         </div>
 
         {steps.map((s) => (
-          <div key={s.id} className="flex gap-2">
+          <div
+            key={s.id}
+            className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-[#e4e8ef] bg-[#fafbfc] p-2"
+          >
             <input
               name="step_label"
               value={s.label}
               onChange={(e) => updateStep(s.id, { label: e.target.value })}
               list="step-presets"
               placeholder="Step name, e.g. Final Yard Pickup"
-              className={input}
+              className={`${input} min-w-0 basis-full sm:flex-1 sm:basis-0`}
               aria-label="Step name"
             />
             <select
               name="step_status"
               value={s.status}
               onChange={(e) => updateStep(s.id, { status: e.target.value })}
-              className={`${input} w-40 shrink-0`}
+              className={`${STEP_SELECT} ${STEP_TINT[s.status] ?? STEP_TINT.TODO}`}
               aria-label="Step status"
             >
               {Object.entries(STEP_STATUS_LABEL).map(([v, l]) => (
@@ -251,7 +261,12 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
                 </option>
               ))}
             </select>
-            <button type="button" onClick={() => setSteps((x) => x.filter((r) => r.id !== s.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove step">
+            <button
+              type="button"
+              onClick={() => setSteps((x) => x.filter((r) => r.id !== s.id))}
+              className="ml-auto shrink-0 rounded-md p-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600 sm:ml-0"
+              aria-label="Remove step"
+            >
               <Trash2 size={16} />
             </button>
           </div>
@@ -270,7 +285,7 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
 
       <Section title="Financial breakdown" description="Add a suffix like “/ mo” for recurring amounts. Pick “No badge” for plain line items.">
         {charges.map((c) => (
-          <div key={c.id} className="grid gap-2 rounded-lg border border-[#eee] p-3 sm:grid-cols-[1.3fr_1.3fr_100px_90px_130px_auto] sm:border-0 sm:p-0">
+          <div key={c.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 rounded-lg border border-[#eee] p-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_88px_72px_112px_auto] md:border-0 md:p-0">
             <input name="charge_label" defaultValue={c.label} placeholder="Base Monthly Lease" className={input} aria-label="Charge label" />
             <input name="charge_note" defaultValue={c.note} placeholder="Includes 12,000 mi" className={input} aria-label="Charge note" />
             <input name="charge_amount" defaultValue={c.amount} placeholder="3650" inputMode="decimal" className={input} aria-label="Amount" />
@@ -281,7 +296,7 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
               <option value="PROCESSING">Processing</option>
               <option value="DUE">Due</option>
             </select>
-            <button type="button" onClick={() => setCharges((x) => x.filter((r) => r.id !== c.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove charge">
+            <button type="button" onClick={() => setCharges((x) => x.filter((r) => r.id !== c.id))} className="col-span-2 justify-self-end rounded-md px-2 py-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600 md:col-span-1" aria-label="Remove charge">
               <Trash2 size={16} />
             </button>
           </div>
@@ -301,11 +316,11 @@ export function PortalForm({ action, initial, submitLabel, maxNewFiles, maxFiles
           ))}
         </datalist>
         {docs.map((d) => (
-          <div key={d.id} className="grid gap-2 rounded-lg border border-[#eee] p-3 sm:grid-cols-[1.2fr_1fr_1.3fr_auto]">
+          <div key={d.id} className="grid grid-cols-1 gap-2 rounded-lg border border-[#eee] p-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto]">
             <input name="doc_kind" list="doc-kinds" placeholder="Document name" className={input} aria-label="Document name" />
             <input name="doc_note" placeholder="Note, e.g. Signed Oct 20" className={input} aria-label="Document note" />
             <input type="file" name="doc_file" accept={acceptAttr} className={`${input} file:mr-3 file:rounded file:border-0 file:bg-[#141414] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#D4AF37]`} aria-label="File (optional)" />
-            <button type="button" onClick={() => setDocs((x) => x.filter((r) => r.id !== d.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove document">
+            <button type="button" onClick={() => setDocs((x) => x.filter((r) => r.id !== d.id))} className="justify-self-end rounded-md px-2 py-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove document">
               <Trash2 size={16} />
             </button>
           </div>
