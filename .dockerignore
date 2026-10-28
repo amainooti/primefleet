@@ -5,4 +5,4 @@ docs-temp
 *.zip
 BUILD_STATUS.md
 .env
-public/uploads
+public/uploadsstorage

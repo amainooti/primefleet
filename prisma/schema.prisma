@@ -108,3 +108,94 @@ model Admin {
   id           String @id @default(cuid())
   passwordHash String
 }
+
+// ---------------------------------------------------------------------------
+// Client portals — publicly creatable, link-shared dashboards.
+// `slug` is the unguessable public share token; `manageKeyHash` is the
+// SHA-256 of the secret key that unlocks editing / uploads.
+// ---------------------------------------------------------------------------
+
+enum PortalStepStatus {
+  DONE
+  PENDING
+  TODO
+}
+
+enum PortalChargeStatus {
+  PAID
+  PROCESSING
+  DUE
+}
+
+model Portal {
+  id            String @id @default(cuid())
+  slug          String @unique
+  manageKeyHash String
+
+  // Client
+  contactName  String
+  companyName  String
+  contactEmail String?
+  contactPhone String?
+
+  // Branding / copy
+  dealerName      String  @default("PrimeFleet Motors LLC")
+  alertText       String?
+  alertActionLabel String?
+  maintenanceNotes String?
+
+  // Vehicle
+  vehicleTitle  String
+  vehicleStatus String  @default("Locked & Reserved")
+  stockNumber   String?
+  vehicleColor  String?
+  vin           String?
+  engine        String?
+  transmission  String?
+  mileage       String?
+
+  steps     PortalStep[]
+  charges   PortalCharge[]
+  documents PortalDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PortalStep {
+  id        String           @id @default(cuid())
+  portalId  String
+  portal    Portal           @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  label     String
+  status    PortalStepStatus @default(TODO)
+  sortOrder Int              @default(0)
+
+  @@index([portalId])
+}
+
+model PortalCharge {
+  id        String             @id @default(cuid())
+  portalId  String
+  portal    Portal             @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  label     String
+  note      String?
+  amount    String
+  status    PortalChargeStatus @default(PROCESSING)
+  sortOrder Int                @default(0)
+
+  @@index([portalId])
+}
+
+model PortalDocument {
+  id         String   @id @default(cuid())
+  portalId   String
+  portal     Portal   @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  kind       String
+  fileName   String
+  storedName String
+  mimeType   String
+  size       Int
+  createdAt  DateTime @default(now())
+
+  @@index([portalId])
+}

@@ -233,13 +233,15 @@ async function downloadImage(sourceUrl: string, stockNumber: string): Promise<st
   return `${R2_PUBLIC_URL}/${key}`;
 }
 
-async function populateDetailImages(listings: Listing[]): Promise<void> {
+async function populateDetailImages(listings: Listing[], delayMs: number): Promise<void> {
   const browser = await chromium.connectOverCDP(CDP_ENDPOINT);
   const context = browser.contexts()[0];
   if (!context) throw new Error(`No browser context found at ${CDP_ENDPOINT}`);
   const page = await context.newPage();
   try {
-    for (const listing of listings) {
+    for (const [index, listing] of listings.entries()) {
+      if (index > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+      console.log(`  Detail page ${index + 1}/${listings.length}: ${listing.stockNumber}`);
       try {
         await page.goto(listing.sourceUrl, { waitUntil: "load", timeout: 30_000 });
 
@@ -497,7 +499,7 @@ async function main() {
   if (options.listingUrl) {
     console.log(`Fetching single listing: ${options.listingUrl}`);
     const listing = await buildSingleListing(options.listingUrl, options.cdp);
-    if (options.write && options.cdp) await populateDetailImages([listing]);
+    if (options.write && options.cdp) await populateDetailImages([listing], options.delayMs);
     await importListings([listing], options, category);
     return;
   }
@@ -523,7 +525,7 @@ async function main() {
     console.warn("No listings found; nothing to import. The database was not touched.");
     return;
   }
-  if (options.write && options.cdp) await populateDetailImages(selected);
+  if (options.write && options.cdp) await populateDetailImages(selected, options.delayMs);
   await importListings(selected, options, category);
 }
 

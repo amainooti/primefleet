@@ -7,6 +7,7 @@ import { logout } from "@/app/admin/actions";
 const NAV_LINKS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/trucks", label: "Inventory" },
+  { href: "/admin/portals", label: "Client Portals" },
 ];
 
 function isActiveLink(pathname: string, href: string) {

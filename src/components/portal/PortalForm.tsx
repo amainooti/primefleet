@@ -1,0 +1,237 @@
+"use client";
+
+import { useActionState, startTransition, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import type { PortalFormState } from "@/app/portal/actions";
+import { DOCUMENT_KINDS } from "@/lib/portal/constants";
+import type { PortalFormValues } from "./types";
+
+type Props = {
+  action: (prev: PortalFormState, fd: FormData) => Promise<PortalFormState>;
+  initial: PortalFormValues;
+  submitLabel: string;
+  maxNewFiles: number;
+  acceptAttr: string;
+};
+
+const input =
+  "w-full rounded-md border border-[#d9dce3] bg-white px-3 py-2 text-sm text-[#141414] outline-none transition focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/30";
+const label = "mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6B6E76]";
+
+function Field({
+  name,
+  title,
+  defaultValue,
+  error,
+  required,
+  placeholder,
+  type = "text",
+  hint,
+}: {
+  name: string;
+  title: string;
+  defaultValue: string;
+  error?: string;
+  required?: boolean;
+  placeholder?: string;
+  type?: string;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={name} className={label}>
+        {title}
+        {required && <span className="text-red-600"> *</span>}
+      </label>
+      <input
+        id={name}
+        name={name}
+        type={type}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        className={input}
+        aria-invalid={error ? true : undefined}
+      />
+      {hint && !error && <p className="mt-1 text-xs text-[#6B6E76]">{hint}</p>}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-[#e4e4e2] bg-white p-6 shadow-sm">
+      <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-[#141414]">{title}</h2>
+      {description && <p className="mt-1 text-sm text-[#6B6E76]">{description}</p>}
+      <div className="mt-5 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+let rowId = 0;
+const nextId = () => ++rowId;
+
+export function PortalForm({ action, initial, submitLabel, maxNewFiles, acceptAttr }: Props) {
+  const [state, formAction, pending] = useActionState(action, {} as PortalFormState);
+  const fe = state.fieldErrors ?? {};
+
+  const [steps, setSteps] = useState(() =>
+    initial.steps.map((s) => ({ ...s, id: nextId() }))
+  );
+  const [charges, setCharges] = useState(() =>
+    initial.charges.map((c) => ({ ...c, id: nextId() }))
+  );
+  const [docs, setDocs] = useState<{ id: number }[]>([]);
+
+  // Submit through startTransition (rather than <form action>) so React does not
+  // reset the form — typed values and chosen files survive a validation error.
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => formAction(fd));
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-6" noValidate>
+      {/* honeypot — hidden from people, bots fill it */}
+      <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+        <label>
+          Website
+          <input name="website" tabIndex={-1} autoComplete="off" />
+        </label>
+      </div>
+
+      <Section title="Client details" description="Who this portal is for.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field name="contactName" title="Contact name" required defaultValue={initial.contactName} error={fe.contactName} placeholder="Marilyn Bail" />
+          <Field name="companyName" title="Company" required defaultValue={initial.companyName} error={fe.companyName} placeholder="MR1 Enterprises Inc." />
+          <Field name="contactEmail" title="Email" type="email" defaultValue={initial.contactEmail} error={fe.contactEmail} />
+          <Field name="contactPhone" title="Phone" defaultValue={initial.contactPhone} error={fe.contactPhone} />
+        </div>
+      </Section>
+
+      <Section title="Assigned vehicle">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Field name="vehicleTitle" title="Vehicle" required defaultValue={initial.vehicleTitle} error={fe.vehicleTitle} placeholder="2019 Peterbilt 389 Extended Hood" />
+          </div>
+          <Field name="vehicleStatus" title="Status badge" defaultValue={initial.vehicleStatus} error={fe.vehicleStatus} />
+          <Field name="stockNumber" title="Stock #" defaultValue={initial.stockNumber} error={fe.stockNumber} placeholder="29432" />
+          <Field name="vehicleColor" title="Color / type" defaultValue={initial.vehicleColor} error={fe.vehicleColor} placeholder="Polished Black Conventional" />
+          <Field name="vin" title="VIN" defaultValue={initial.vin} error={fe.vin} />
+          <Field name="engine" title="Engine" defaultValue={initial.engine} error={fe.engine} placeholder="Cummins ISX15 (500 HP)" />
+          <Field name="transmission" title="Transmission" defaultValue={initial.transmission} error={fe.transmission} placeholder="Eaton-Fuller 13-Speed" />
+          <Field name="mileage" title="Current mileage" defaultValue={initial.mileage} error={fe.mileage} placeholder="494,000 mi" />
+        </div>
+      </Section>
+
+      <Section title="Onboarding progress" description="The checklist shown on the dashboard. Progress % is calculated from completed steps.">
+        {steps.map((s) => (
+          <div key={s.id} className="flex gap-2">
+            <input
+              name="step_label"
+              defaultValue={s.label}
+              placeholder="Step name"
+              className={input}
+              aria-label="Step name"
+            />
+            <select name="step_status" defaultValue={s.status} className={`${input} w-40 shrink-0`} aria-label="Step status">
+              <option value="DONE">Done</option>
+              <option value="PENDING">Pending</option>
+              <option value="TODO">Not started</option>
+            </select>
+            <button type="button" onClick={() => setSteps((x) => x.filter((r) => r.id !== s.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove step">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+        {fe.steps && <p className="text-xs text-red-600">{fe.steps}</p>}
+        {steps.length < 12 && (
+          <button type="button" onClick={() => setSteps((x) => [...x, { id: nextId(), label: "", status: "TODO" }])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] hover:text-[#b8941f]">
+            <Plus size={15} /> Add step
+          </button>
+        )}
+        <div className="grid gap-4 border-t border-[#eee] pt-4 sm:grid-cols-[1fr_200px]">
+          <Field name="alertText" title="Action-required banner (optional)" defaultValue={initial.alertText} error={fe.alertText} placeholder="Please upload your Certificate of Insurance (COI) to finalize your IRP and release the vehicle." hint="Leave blank to hide it unless a step is Pending." />
+          <Field name="alertActionLabel" title="Banner button" defaultValue={initial.alertActionLabel} error={fe.alertActionLabel} />
+        </div>
+      </Section>
+
+      <Section title="Financial breakdown">
+        {charges.map((c) => (
+          <div key={c.id} className="grid gap-2 sm:grid-cols-[1.4fr_1.4fr_110px_130px_auto]">
+            <input name="charge_label" defaultValue={c.label} placeholder="Initial Holding Deposit" className={input} aria-label="Charge label" />
+            <input name="charge_note" defaultValue={c.note} placeholder="Paid via PNC RFP" className={input} aria-label="Charge note" />
+            <input name="charge_amount" defaultValue={c.amount} placeholder="1500" inputMode="decimal" className={input} aria-label="Amount" />
+            <select name="charge_status" defaultValue={c.status} className={input} aria-label="Charge status">
+              <option value="PAID">Paid</option>
+              <option value="PROCESSING">Processing</option>
+              <option value="DUE">Due</option>
+            </select>
+            <button type="button" onClick={() => setCharges((x) => x.filter((r) => r.id !== c.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove charge">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+        {fe.charges && <p className="text-xs text-red-600">{fe.charges}</p>}
+        {charges.length < 12 && (
+          <button type="button" onClick={() => setCharges((x) => [...x, { id: nextId(), label: "", note: "", amount: "", status: "DUE" }])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] hover:text-[#b8941f]">
+            <Plus size={15} /> Add charge
+          </button>
+        )}
+      </Section>
+
+      <Section title="Documents" description={`Attach files now (PDF, JPG, PNG, WEBP or DOCX · 10MB each · up to ${maxNewFiles} at a time). You can add more later from the dashboard.`}>
+        {docs.map((d) => (
+          <div key={d.id} className="flex flex-col gap-2 sm:flex-row">
+            <select name="doc_kind" className={`${input} sm:w-64`} aria-label="Document type">
+              {DOCUMENT_KINDS.map((k) => (
+                <option key={k}>{k}</option>
+              ))}
+            </select>
+            <input type="file" name="doc_file" accept={acceptAttr} className={`${input} file:mr-3 file:rounded file:border-0 file:bg-[#141414] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#D4AF37]`} aria-label="File" />
+            <button type="button" onClick={() => setDocs((x) => x.filter((r) => r.id !== d.id))} className="rounded-md px-2 text-[#6B6E76] hover:bg-red-50 hover:text-red-600" aria-label="Remove file">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+        {docs.length < maxNewFiles && (
+          <button type="button" onClick={() => setDocs((x) => [...x, { id: nextId() }])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] hover:text-[#b8941f]">
+            <Plus size={15} /> Attach a file
+          </button>
+        )}
+      </Section>
+
+      <Section title="Extra details (optional)">
+        <Field name="dealerName" title="Dealer name (sidebar footer)" defaultValue={initial.dealerName} error={fe.dealerName} />
+        <div>
+          <label htmlFor="maintenanceNotes" className={label}>Maintenance notes</label>
+          <textarea id="maintenanceNotes" name="maintenanceNotes" rows={4} defaultValue={initial.maintenanceNotes} className={input} placeholder="Service history, scheduled inspections…" />
+          {fe.maintenanceNotes && <p className="mt-1 text-xs text-red-600">{fe.maintenanceNotes}</p>}
+        </div>
+      </Section>
+
+      {state.error && (
+        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {state.error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-md bg-[#141414] px-6 py-3 text-sm font-bold uppercase tracking-wide text-[#D4AF37] transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
+      >
+        {pending ? "Saving…" : submitLabel}
+      </button>
+    </form>
+  );
+}
